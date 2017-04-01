@@ -110,9 +110,10 @@ def generate_x_y_data_v3(isTrain, batch_size):
     Similaire a la fonction "v1", ici on genere un signal
     avec 2 frequences choisies au hasard, et cela pour les 2 signaux.
     """
-    x, y = generate_x_y_data_two_freqs(isTrain, batch_size, seq_length=30)
-    noise_amount = random.random() * 0.15 + 0.05
-    x = x + noise_amount*np.random.randn(len(x))
+    seq_length = 30
+    x, y = generate_x_y_data_two_freqs(isTrain, batch_size, seq_length=seq_length)
+    noise_amount = random.random() * 0.15 + 0.10
+    x = x + noise_amount*np.random.randn(seq_length, batch_size, 1)
 
     avg = np.average(x)
     std = np.std(x) + 0.0001
