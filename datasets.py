@@ -1,5 +1,9 @@
+__author__ = "Guillaume Chevalier"
+__license__ = "MIT"
+__version__ = "2017-03"
 
 import numpy as np
+import requests
 
 import random
 import math
@@ -124,5 +128,107 @@ def generate_x_y_data_v3(isTrain, batch_size):
 
     return x, y
 
+def loadCurrency(curr, window_size):
+    """
+    Retourne l'historique pour USD ou EUR suite a un call d'API:
+    curr = "USD"|"EUR"
+    """
+    # For more info on the URL call, it is inspired by : https://github.com/Levino/coindesk-api-node
+    r = requests.get(
+        "http://api.coindesk.com/v1/bpi/historical/close.json?start=2010-07-17&end=2017-03-03&currency={}".format(
+            curr
+        )
+    )
+    data = r.json()
+    time_to_values = sorted(data["bpi"].items())
+    values = [val for key, val in time_to_values]
+    useful_values = values[1000:]
+
+    X = []
+    Y = []
+    for i in range(len(useful_values)-window_size*2):
+        X.append(useful_values[i:i+window_size])
+        Y.append(useful_values[i+window_size:i+window_size*2])
+
+    # To be able to concat on inner dimension later on:
+    X = np.expand_dims(X, axis=2)
+    Y = np.expand_dims(Y, axis=2)
+
+    return X, Y
+
+def normalize(X, Y=None):
+    """
+    Normalise X et Y selon la moyenne et la deviation standard de X seulement.
+    """
+    # # It would be possible to normalize with last rather than mean, such as:
+    # lasts = np.expand_dims(X[:, -1, :], axis=1)
+    # assert (lasts[:, :] == X[:, -1, :]).all(), "{}, {}, {}. {}".format(lasts[:, :].shape, X[:, -1, :].shape, lasts[:, :], X[:, -1, :])
+    mean   = np.expand_dims(np.average(X, axis=1) + 0.00001, axis=1)
+    stddev = np.expand_dims(np.std(    X, axis=1) + 0.00001, axis=1)
+    # print (mean.shape, stddev.shape)
+    # print (X.shape, Y.shape)
+    X = X - mean
+    X = X / (2.5*stddev)
+    if Y is not None:
+        assert Y.shape == X.shape, (Y.shape, X.shape)
+        Y = Y - mean
+        Y = Y / (2.5*stddev)
+        return X, Y
+    return X
+
+def fetch_batch_size_random(X, Y, batch_size):
+    """
+    Retourne au hasard une batch alignee de X et Y parmi tous les X et Y
+    La dimension externe de X et Y doit etre la batch (ex: 1 colonne = 1 exemple).
+    X et Y peuvent etre N-dimensionnaux.
+    """
+    assert X.shape == Y.shape, (X.shape, Y.shape)
+    idxes = np.random.randint(X.shape[0], size=batch_size)
+    X_out = np.array(X[idxes]).transpose((1, 0, 2))
+    Y_out = np.array(Y[idxes]).transpose((1, 0, 2))
+    return X_out, Y_out
+
+X_train = []
+Y_train = []
+X_test = []
+Y_test = []
 def generate_x_y_data_v4(isTrain, batch_size):
-    pass
+    """
+    Retourne des donnees financieres du Bitcoin,
+    avec des features en USD et en EUR pour la dimension interne.
+    On normalise les donnees selon X pour chaque fenetre (window ou seq_length)
+    Y est la prediction suite a X selon la normalisation de X.
+    Les donnees d'entrainement sont separees des donnees de test avec la
+    regle du 80-20. Ainsi, les donnees de test sont les 20\%  des plus recentes
+    donnees historiques.
+    Chaque exemple en X contient ainsi 40 points contenant USD et puis EUR.
+    Y a la meme taille que X.
+    """
+    # 40 pas values for encoder, 40 after for decoder's predictions.
+    seq_length = 40
+
+    global Y_train
+    global X_train
+    global X_test
+    global Y_test
+    # First load, with memoization:
+    if len(Y_test) == 0:
+
+        X_usd, Y_usd = loadCurrency("USD", window_size=seq_length)
+        X_eur, Y_eur = loadCurrency("EUR", window_size=seq_length)
+
+        # All data, aligned:
+        X = np.concatenate((X_usd, X_eur), axis=2)
+        Y = np.concatenate((Y_usd, Y_eur), axis=2)
+        X, Y = normalize(X, Y)
+
+        # Split 80-20:
+        X_train = X[:int(len(X)*0.8)]
+        Y_train = Y[:int(len(Y)*0.8)]
+        X_test = X[int(len(X)*0.8):]
+        Y_test = Y[int(len(Y)*0.8):]
+
+    if isTrain:
+        return fetch_batch_size_random(X_train, Y_train, batch_size)
+    else:
+        return fetch_batch_size_random(X_test,  Y_test,  batch_size)
