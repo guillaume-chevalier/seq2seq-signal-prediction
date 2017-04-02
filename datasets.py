@@ -142,13 +142,13 @@ def loadCurrency(curr, window_size):
     data = r.json()
     time_to_values = sorted(data["bpi"].items())
     values = [val for key, val in time_to_values]
-    useful_values = values[1000:]
+    kept_values = values[1000:]
 
     X = []
     Y = []
-    for i in range(len(useful_values)-window_size*2):
-        X.append(useful_values[i:i+window_size])
-        Y.append(useful_values[i+window_size:i+window_size*2])
+    for i in range(len(kept_values)-window_size*2):
+        X.append(kept_values[i:i+window_size])
+        Y.append(kept_values[i+window_size:i+window_size*2])
 
     # To be able to concat on inner dimension later on:
     X = np.expand_dims(X, axis=2)
@@ -213,7 +213,7 @@ def generate_x_y_data_v4(isTrain, batch_size):
     global Y_test
     # First load, with memoization:
     if len(Y_test) == 0:
-
+        # API call:
         X_usd, Y_usd = loadCurrency("USD", window_size=seq_length)
         X_eur, Y_eur = loadCurrency("EUR", window_size=seq_length)
 
