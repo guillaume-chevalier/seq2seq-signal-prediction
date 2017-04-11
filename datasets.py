@@ -10,19 +10,20 @@ import math
 
 def generate_x_y_data_v1(isTrain, batch_size):
     """
-    Donnees pour l'exercice 1.
+    Data for exercise 1.
 
-    retour: tuple (X, Y)
-        X est un sinus et un cosinus ayant pour domaine 0.0*pi a 1.5*pi
-        Y est un sinus et un cosinus ayant pour domaine 1.5*pi a 3.0*pi
-    Donc, un signal en X et sa prolongation en Y.
+    returns: tuple (X, Y)
+        X is a sine and a cosine from 0.0*pi to 1.5*pi
+        Y is a sine and a cosine from 1.5*pi to 3.0*pi
+    Therefore, Y follows X. There is also a random offset 
+    commonly applied to X an Y. 
 
-    Les 2 tableaux retournes sont un de la taille:
+    The returned arrays are of shape:
         (seq_length, batch_size, output_dim)
-        donc: (10, batch_size, 2)
+        Therefore: (10, batch_size, 2)
 
-    Pour cet exercice, on ignore l'argument "isTrain",
-    car on va prendre les meme donnees de test que pour l'entrainement.
+    For this exercise, let's ignore the "isTrain"
+    argument and test on the same data.
     """
     seq_length = 10
 
@@ -103,16 +104,20 @@ def generate_x_y_data_two_freqs(isTrain, batch_size, seq_length):
 
 def generate_x_y_data_v2(isTrain, batch_size):
     """
-    Similaire a la fonction "v1", ici on genere un signal
-    avec 2 frequences choisies au hasard, et cela pour les 2 signaux.
+    Similar the the "v1" function, but here we generate a signal with
+    2 frequencies chosen randomly - and this for the 2 signals. Plus, 
+    the lenght of the examples is of 15 rather than 10. 
+    So we have 30 total values for past and future. 
     """
     return generate_x_y_data_two_freqs(isTrain, batch_size, seq_length=15)
 
 
 def generate_x_y_data_v3(isTrain, batch_size):
     """
-    Similaire a la fonction "v1", ici on genere un signal
-    avec 2 frequences choisies au hasard, et cela pour les 2 signaux.
+    Similar to the "v2" function, but here we generate a signal
+    with noise in the X values. Plus, 
+    the lenght of the examples is of 30 rather than 10. 
+    So we have 60 total values for past and future. 
     """
     seq_length = 30
     x, y = generate_x_y_data_two_freqs(isTrain, batch_size, seq_length=seq_length)
@@ -130,8 +135,8 @@ def generate_x_y_data_v3(isTrain, batch_size):
 
 def loadCurrency(curr, window_size):
     """
-    Retourne l'historique pour USD ou EUR suite a un call d'API:
-    curr = "USD"|"EUR"
+    Returns the historical data for the USD or EUR bitcoin value. Is done with an web API call.
+    curr = "USD" | "EUR"
     """
     # For more info on the URL call, it is inspired by : https://github.com/Levino/coindesk-api-node
     r = requests.get(
@@ -158,7 +163,7 @@ def loadCurrency(curr, window_size):
 
 def normalize(X, Y=None):
     """
-    Normalise X et Y selon la moyenne et la deviation standard de X seulement.
+    Normalises X et Y according to the mean and standard deviation of the X values only.
     """
     # # It would be possible to normalize with last rather than mean, such as:
     # lasts = np.expand_dims(X[:, -1, :], axis=1)
@@ -178,9 +183,9 @@ def normalize(X, Y=None):
 
 def fetch_batch_size_random(X, Y, batch_size):
     """
-    Retourne au hasard une batch alignee de X et Y parmi tous les X et Y
-    La dimension externe de X et Y doit etre la batch (ex: 1 colonne = 1 exemple).
-    X et Y peuvent etre N-dimensionnaux.
+    Returns randomly an aligned batch_size of X and Y among all examples. 
+    The external dimension of X and Y must be the batch size (eg: 1 column = 1 example).
+    X and Y can be N-dimensional.
     """
     assert X.shape == Y.shape, (X.shape, Y.shape)
     idxes = np.random.randint(X.shape[0], size=batch_size)
@@ -194,15 +199,18 @@ X_test = []
 Y_test = []
 def generate_x_y_data_v4(isTrain, batch_size):
     """
-    Retourne des donnees financieres du Bitcoin,
-    avec des features en USD et en EUR pour la dimension interne.
-    On normalise les donnees selon X pour chaque fenetre (window ou seq_length)
-    Y est la prediction suite a X selon la normalisation de X.
-    Les donnees d'entrainement sont separees des donnees de test avec la
-    regle du 80-20. Ainsi, les donnees de test sont les 20\%  des plus recentes
-    donnees historiques.
-    Chaque exemple en X contient ainsi 40 points contenant USD et puis EUR.
-    Y a la meme taille que X.
+    Returns financial data for the bitcoin. 
+    Features are USD and EUR, in the internal dimension. 
+    We normalize X and Y data according to the X only to not 
+    spoil the predictions we ask for. 
+    
+    For every window (window or seq_length), Y is the prediction following X.
+    Train and test data are separated according to the 80/20 rule. 
+    Therefore, the 20 percent of the test data are the most 
+    recent historical bitcoin values. Every example in X contains
+    40 points of USD and then EUR data in the feature axis/dimension. 
+    It is to be noted that the returned X and Y has the same shape 
+    and are in a tuple. 
     """
     # 40 pas values for encoder, 40 after for decoder's predictions.
     seq_length = 40
