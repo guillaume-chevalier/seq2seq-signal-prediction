@@ -33,6 +33,8 @@ If your changes to the project are about the structure of the neural network and
 
 Be sure that the images in the notebook still render, and that you add all the necessary modified files before commiting. 
 
+Also, note that to run all the exercises properly, you may need to spend a few bucks by renting a GPU-enabled VM/instance on [AWS](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/accelerated-computing-instances.html#gpu-instance-families), [GCP](https://cloud.google.com/gpu/), [Azure](https://docs.microsoft.com/en-us/azure/virtual-machines/windows/sizes-gpu), or [OVH](https://www.ovh.com/us/public-cloud/instances/prices/).
+
 
 ### Exporting the `seq2seq.ipynb` file to `README.md` and `seq2seq.py`
 
