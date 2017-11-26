@@ -35,6 +35,8 @@ Be sure that the images in the notebook still render, and that you add all the n
 
 Also, note that to run all the exercises properly, you may need to spend a few bucks by renting a GPU-enabled VM/instance on [AWS](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/accelerated-computing-instances.html#gpu-instance-families), [GCP](https://cloud.google.com/gpu/), [Azure](https://docs.microsoft.com/en-us/azure/virtual-machines/windows/sizes-gpu), or [OVH](https://www.ovh.com/us/public-cloud/instances/prices/).
 
+In case you want to learn some deep learning concepts to understand the code before being able to contribute, here are the [slides of my talk at the WAQ 2017](https://www.slideshare.net/webaquebec/guillaume-chevalier-deep-learning-avec-tensor-flow), in which I explain the RNN and the seq2seq neural network architectures. Despite the slides are in French, the figures are mostly in English, and nearly 60% of French words are similar to English words. Also, you may want to take a look at my [Awesome Deep Learning Resources](https://github.com/guillaume-chevalier/Awesome-Deep-Learning-Resources), which is a place where I keep track of the resources I liked the most for deep learning.
+
 
 ### Exporting the `seq2seq.ipynb` file to `README.md` and `seq2seq.py`
 
