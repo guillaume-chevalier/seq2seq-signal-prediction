@@ -412,6 +412,14 @@ print("tied in time together and seen at once by the neural network.")
     tied in time together and seen at once by the neural network.
 
 
+## Easier usage in the cloud
+
+Note that I have made improvements as seen just below with the few lines of code for easier usage and for reaching an even better score. Note this this is still an ongoing project, [subscribe here](https://www.neuraxio.com/en/time-series-solution) to learn more. So I'm planning to release an easily-usable cloud solution that can be used as follow to classify or forecast your time series, and this isn't limited to a particular type of data:
+
+[![](https://www.neuraxio.com/images/neuraxio-ts-solution.png)](https://www.neuraxio.com/en/time-series-solution)
+
+Visit [the Neuraxio's Time Series Solution](https://www.neuraxio.com/en/time-series-solution) product page for more information.
+
 ## Author
 
 Guillaume Chevalier
