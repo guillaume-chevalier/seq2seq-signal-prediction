@@ -236,7 +236,7 @@ with tf.variable_scope('Seq2seq'):
 
 # Training loss and optimizer
 
-with tf.variable_scope('Loss'):
+with tf.variable_scope('Loss', reuse=tf.AUTO_REUSE):
     # L2 loss
     output_loss = 0
     for _y, _Y in zip(reshaped_outputs, expected_sparse_output):
@@ -250,7 +250,7 @@ with tf.variable_scope('Loss'):
 
     loss = output_loss + lambda_l2_reg * reg_loss
 
-with tf.variable_scope('Optimizer'):
+with tf.variable_scope('Optimizer', reuse=tf.AUTO_REUSE):
     optimizer = tf.train.RMSPropOptimizer(learning_rate, decay=lr_decay, momentum=momentum)
     train_op = optimizer.minimize(loss)
 
