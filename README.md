@@ -1,32 +1,32 @@
 
 # Sequence to Sequence (seq2seq) Recurrent Neural Network (RNN) for Time Series Prediction
 
-The goal of this project of mine is to bring users to try and experiment with the seq2seq neural network architecture. This is done by solving different simple toy problems about signal prediction. Normally, seq2seq architectures may be used for other more sophisticated purposes than for signal prediction, let's say, language modeling, but this project is an interesting tutorial in order to then get to more complicated stuff.
+The goal I have set for this project is to bring users to try and experiment with the seq2seq neural network architecture. This is done by showing simple example of solving different toy problems on signal prediction. Normally, seq2seq architectures may be used for more sophisticated purposes rather than signal prediction, let's say, language modeling, but this project is an interesting tutorial. We have more complicated stuffs later.
 
-In this project are given 4 exercises of gradually increasing difficulty. I take for granted that the public already have at least knowledge of basic RNNs and how can they be shaped into an encoder and a decoder of the most simple form (without attention). To learn more about RNNs in TensorFlow, you may want to visit this other project of mine about that: https://github.com/guillaume-chevalier/LSTM-Human-Activity-Recognition
+In this project, we have 4 exercises of gradually increasing difficulty. I take for granted that the public already have the basic knowledge of RNNs and how can they can be shaped into an encoder and a decoder of the most simple form (without attention). To learn more about RNNs in TensorFlow, you may want to visit this other project which I have built : https://github.com/guillaume-chevalier/LSTM-Human-Activity-Recognition
 
-The current project is a series of example I have first built in French, but I haven't got the time to generate all the charts anew with proper English text. I have built this project for the practical part of the third hour of a "master class" conference that I gave at the WAQ (Web At Quebec) in March 2017:
+The current project is a series of example I have first built in French, but I haven't got the time to generate all the new charts with proper English text. I have built this project for the practical part of the third hour of a "master class" conference that I gave at the WAQ (Web At Quebec) in March 2017:
 https://webaquebec.org/classes-de-maitre/deep-learning-avec-tensorflow
 
-You can find the French, original, version of this project in the French Git branch: https://github.com/guillaume-chevalier/seq2seq-signal-prediction/tree/francais
+You can find the original French version of this project in the French Git branch: https://github.com/guillaume-chevalier/seq2seq-signal-prediction/tree/francais
 
 ## How to use this ".ipynb" Python notebook ?
 
-Except the fact I made available an ".py" Python version of this tutorial within the repository, it is more convenient to run the code inside the notebook. The ".py" code exported feels a bit raw as an exportation.
+Except the fact I made available an ".py" Python version of this tutorial within the repository, it is more convenient to run the code inside the notebook. The ".py" code exported feels a bit raw during exportation.
 
-To run the notebook, you must have installed Jupyter Notebook or iPython Notebook. To open the notebook, you must write `jupyter notebook` or `iPython notebook` in command line (from the folder containing the notebook once downloaded, or a parent folder). It is then that the notebook application (IDE) will open in your browser as a local server and it will be possible to open the `.ipynb` notebook file and to run code cells with `CTRL+ENTER` and `SHIFT+ENTER`, it is also possible to restart the kernel and run all cells at once with the menus. Note that this is interesting since it is possible to make that IDE run as hosted on a cloud server with a lot of GPU power while you code through the browser.
+To run the notebook, you must have installed Jupyter Notebook or iPython Notebook. To open the notebook, type `jupyter notebook` or `iPython notebook` in command line (from the folder containing the notebook once downloaded, or a parent folder). The notebook application (IDE) will open in your browser as a local server and you could open the `.ipynb` notebook file and to run code cells with `CTRL+ENTER` and `SHIFT+ENTER`, it is also possible to restart the kernel and run all cells at once with the menus. Note that this is interesting, since it is possible to make that IDE run as hosted on a cloud server with a lot of GPU power while you code through the browser.
 
 ## Exercises
 
-Note that the dataset changes in function of the exercice. Most of the time, you will have to edit the neural networks' training parameter to succeed in doing the exercise, but at a certain point, changes in the architecture itself will be asked and required. The datasets used for this exercises are found in `datasets.py`.
+The dataset changes in function of the exercice. Most of the time, you will have to edit the neural networks' training parameter to succeed in doing the exercise, but at a certain point, changes in the architecture itself will be asked and required. The datasets used for this exercises are found in `datasets.py`.
 
 ### Exercise 1
 
-In theory, it is possible to create a perfect prediction of the signal for this exercise. The neural network's parameters has been set to acceptable values for a first training, so you may pass this exercise by running the code without even a change. Your first training might get predictions like that (in yellow), but it is possible to do a lot better with proper parameters adjustments:
+In theory, it is possible to create a perfect prediction of the signal for this exercise. The neural network's parameters has been set to acceptable values for a first training, so you may pass this exercise by running the code without making any change. Your first training might get predictions like that (in yellow), but it is possible to do a lot better with proper parameters adjustments:
 
 <img src="images/E1.png" />
 
-Note: the neural network sees only what is to the left of the chart and is trained to predict what is at the right (predictions in yellow).
+Note: the neural network sees only what is to the left of the chart and is trained to predict output that is on the right (predictions in yellow).
 
 We have 2 time series at once to predict, which are tied together. That means our neural network processes multidimensional data. A simple example would be to receive as an argument the past values of multiple stock market symbols in order to predict the future values of all those symbols with the neural network, which values are evolving together in time. That is what we will do in the exercise 6.
 
@@ -35,7 +35,7 @@ We have 2 time series at once to predict, which are tied together. That means ou
 
 Here, rather than 2 signals in parallel to predict, we have only one, for simplicity. HOWEVER, this signal is a superposition of two sine waves of varying wavelenght and offset (and restricted to a particular min and max limit of wavelengts).
 
-In order to finish this exercise properly, you will need to edit the neural network's hyperparameters. As an example, here is what is possible to achieve as a predction with those better (but still unperfect) training hyperparameters:
+In order to finish this exercise properly, you will need to edit the neural network's hyperparameters. As an example, the below are a set of better (but still unperfect) training hyperparameters that makes better prediction:
 
 - `nb_iters = 2500`
 - `batch_size = 50`
