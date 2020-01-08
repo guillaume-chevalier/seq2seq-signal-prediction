@@ -1,11 +1,12 @@
 import numpy as np
 import tensorflow as tf
+
 from neuraxle.hyperparams.space import HyperparameterSamples
 from neuraxle.pipeline import MiniBatchSequentialPipeline, Pipeline, Joiner
 from neuraxle.steps.data import EpochRepeater
-from datasets import generate_x_y_data_v1, generate_x_y_data_v2, generate_x_y_data_v3, generate_x_y_data_v4
-
 from neuraxle_tensorflow.tensorflow_v1 import TensorflowV1ModelStep
+
+from datasets import generate_x_y_data_v1, generate_x_y_data_v2, generate_x_y_data_v3, generate_x_y_data_v4
 
 
 def create_graph(step: TensorflowV1ModelStep):
@@ -101,14 +102,6 @@ def create_feed_dict(step: TensorflowV1ModelStep, data_inputs, expected_outputs)
 
 
 if __name__ == '__main__':
-    try:
-        tf.nn.seq2seq = tf.contrib.legacy_seq2seq
-        tf.nn.rnn_cell = tf.contrib.rnn
-        tf.nn.rnn_cell.GRUCell = tf.contrib.rnn.GRUCell
-        print("TensorFlow's version : 1.0 (or more)")
-    except:
-        print("TensorFlow's version : 0.12")
-
     exercise = 1
     # We choose which data function to use below, in function of the exericse.
     if exercise == 1:
