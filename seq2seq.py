@@ -170,6 +170,7 @@ tf.reset_default_graph()
 sess = tf.InteractiveSession()
 
 with tf.variable_scope('Seq2seq'):
+
     # Encoder: inputs
     enc_inp = [
         tf.placeholder(tf.float32, shape=(None, input_dim), name="inp_{}".format(t))
