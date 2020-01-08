@@ -8,6 +8,8 @@ from neuraxle_tensorflow.tensorflow_v1 import TensorflowV1ModelStep
 
 from datasets import generate_x_y_data_v1, generate_x_y_data_v2, generate_x_y_data_v3, generate_x_y_data_v4
 
+GO_TOKEN = -1.
+
 
 def create_graph(step: TensorflowV1ModelStep):
     # shape: (batch_size, seq_length, input_dim)
@@ -28,9 +30,12 @@ def create_graph(step: TensorflowV1ModelStep):
     target_sequence_length = tf.placeholder(dtype=tf.int32, shape=[None], name='expected_outputs_length')
 
     encoder_state = create_encoder(step, data_inputs)
-    decoder_outputs = create_decoder(step, encoder_state)
 
-    return decoder_outputs
+    decoder_cell = create_stacked_rnn(step)
+    decoder_outputs_training = create_training_decoder(step, encoder_state, decoder_cell)
+    decoder_outputs_inference = create_inference_decoder(step, encoder_state, decoder_cell)
+
+    return decoder_outputs_training, decoder_outputs_inference
 
 
 def create_encoder(step, data_inputs):
@@ -40,15 +45,37 @@ def create_encoder(step, data_inputs):
     return encoder_state
 
 
-def create_decoder(step: TensorflowV1ModelStep, encoder_state):
+def create_training_decoder(step: TensorflowV1ModelStep, encoder_state, decoder_cell):
+    go_tokens = tf.constant(GO_TOKEN, shape=[step.hyperparams['batch_size'], 1, step.hyperparams['output_dim']])
+    inputs = tf.concat([go_tokens, step['expected_outputs']], axis=1)
+
     helper = tf.contrib.seq2seq.TrainingHelper(
-        inputs=step['expected_outputs'],
+        inputs=inputs,
         sequence_length=step['expected_outputs_length']
     )
 
-    # TODO: helper = tf.contrib.seq2seq.InferenceHelper()
+    output = create_decoder_outputs(step, helper, encoder_state, decoder_cell)
 
-    decoder_cell = create_stacked_rnn(step)
+    return output
+
+
+def create_inference_decoder(step: TensorflowV1ModelStep, encoder_state, decoder_cell):
+    start_inputs = tf.constant(GO_TOKEN, shape=[step.hyperparams['batch_size'], step.hyperparams['output_dim']])
+
+    helper = tf.contrib.seq2seq.InferenceHelper(
+        sample_fn=lambda x: x,
+        sample_shape=[step.hyperparams['input_dim']],
+        sample_dtype=tf.dtypes.float32,
+        start_inputs=start_inputs,
+        end_fn=lambda sample_ids: False
+    )
+
+    output = create_decoder_outputs(step, helper, encoder_state, decoder_cell)
+
+    return output
+
+
+def create_decoder_outputs(step, helper, encoder_state, decoder_cell):
     decoder = tf.contrib.seq2seq.BasicDecoder(
         cell=decoder_cell,
         helper=helper,
@@ -57,9 +84,8 @@ def create_decoder(step: TensorflowV1ModelStep, encoder_state):
     )
 
     decoder_outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(decoder=decoder, impute_finished=True)
-    output = decoder_outputs.rnn_output
 
-    return output
+    return decoder_outputs.rnn_output
 
 
 def create_stacked_rnn(step: TensorflowV1ModelStep):
@@ -102,7 +128,7 @@ def create_feed_dict(step: TensorflowV1ModelStep, data_inputs, expected_outputs)
 
 
 if __name__ == '__main__':
-    exercise = 1
+    exercise = 4
     # We choose which data function to use below, in function of the exericse.
     if exercise == 1:
         generate_x_y_data = generate_x_y_data_v1
@@ -125,6 +151,7 @@ if __name__ == '__main__':
         create_optimizer=create_optimizer,
         create_feed_dict=create_feed_dict
     ).set_hyperparams(HyperparameterSamples({
+        'batch_size': BATCH_SIZE,
         'lambda_loss_amount': 0.003,
         'output_dim': output_dim,
         'input_dim': input_dim,
@@ -141,9 +168,10 @@ if __name__ == '__main__':
                 model_step,
                 Joiner(batch_size=BATCH_SIZE)
             ]),
-            epochs=EPOCHS
+            epochs=EPOCHS,
+            fit_only=False
         )
     ])
 
     X, Y = generate_x_y_data(isTrain=True, batch_size=BATCH_SIZE)
-    pipeline, outputs = pipeline.fit_transform(data_inputs=X, expected_outputs=Y)
+    pipeline = pipeline.fit_transform(data_inputs=X, expected_outputs=Y)
