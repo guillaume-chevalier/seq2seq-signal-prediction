@@ -1,12 +1,11 @@
 import numpy as np
 import tensorflow as tf
-
+from neuraxle.api import DeepLearningPipeline
 from neuraxle.hyperparams.space import HyperparameterSamples
-from neuraxle.pipeline import MiniBatchSequentialPipeline, Pipeline, Joiner
-from neuraxle.steps.data import EpochRepeater
-from neuraxle_tensorflow.tensorflow_v1 import TensorflowV1ModelStep
+from sklearn.metrics import mean_squared_error
 
 from datasets import generate_x_y_data_v1, generate_x_y_data_v2, generate_x_y_data_v3, generate_x_y_data_v4
+from neuraxle_tensorflow.tensorflow_v1 import TensorflowV1ModelStep
 
 GO_TOKEN = -1.
 
@@ -127,6 +126,13 @@ def create_feed_dict(step: TensorflowV1ModelStep, data_inputs, expected_outputs)
     }
 
 
+def to_numpy_metric_wrapper(metric_fun):
+    def metric(data_inputs, expected_outputs):
+        return metric_fun(np.array(data_inputs), np.array(expected_outputs))
+
+    return metric
+
+
 if __name__ == '__main__':
     exercise = 4
     # We choose which data function to use below, in function of the exericse.
@@ -145,33 +151,31 @@ if __name__ == '__main__':
     sample_x, sample_y = generate_x_y_data(isTrain=True, batch_size=BATCH_SIZE)
     output_dim = input_dim = sample_x.shape[-1]
 
-    model_step = TensorflowV1ModelStep(
-        create_graph=create_graph,
-        create_loss=create_loss,
-        create_optimizer=create_optimizer,
-        create_feed_dict=create_feed_dict
-    ).set_hyperparams(HyperparameterSamples({
-        'batch_size': BATCH_SIZE,
-        'lambda_loss_amount': 0.003,
-        'output_dim': output_dim,
-        'input_dim': input_dim,
-        'hidden_dim': 12,
-        'layers_stacked_count': 2,
-        'learning_rate': 0.007,
-        'lr_decay': 0.92,
-        'momentum': 0.5
-    }))
-
-    pipeline = Pipeline([
-        EpochRepeater(
-            MiniBatchSequentialPipeline([
-                model_step,
-                Joiner(batch_size=BATCH_SIZE)
-            ]),
-            epochs=EPOCHS,
-            fit_only=False
-        )
-    ])
+    pipeline = DeepLearningPipeline(
+        TensorflowV1ModelStep(
+            create_graph=create_graph,
+            create_loss=create_loss,
+            create_optimizer=create_optimizer,
+            create_feed_dict=create_feed_dict
+        ).set_hyperparams(HyperparameterSamples({
+            'batch_size': BATCH_SIZE,
+            'lambda_loss_amount': 0.003,
+            'output_dim': output_dim,
+            'input_dim': input_dim,
+            'hidden_dim': 12,
+            'layers_stacked_count': 2,
+            'learning_rate': 0.007,
+            'lr_decay': 0.92,
+            'momentum': 0.5
+        })),
+        validation_size=0.1,
+        batch_size=BATCH_SIZE,
+        batch_metrics={'mse': to_numpy_metric_wrapper(mean_squared_error)},
+        shuffle_in_each_epoch_at_train=True,
+        n_epochs=EPOCHS,
+        epochs_metrics={'mse': to_numpy_metric_wrapper(mean_squared_error)},
+        scoring_function=mean_squared_error
+    )
 
     X, Y = generate_x_y_data(isTrain=True, batch_size=BATCH_SIZE)
-    pipeline = pipeline.fit_transform(data_inputs=X, expected_outputs=Y)
+    pipeline, outputs = pipeline.fit_transform(data_inputs=X, expected_outputs=Y)

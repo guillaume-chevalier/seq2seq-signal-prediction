@@ -1,0 +1,3 @@
+tensorflow==1.14
+-e git://github.com/alexbrillant/Neuraxle.git@a270fe2b2f73c9350d76fcf4b6f058b764a8c8f7#egg=neuraxle
+requests
