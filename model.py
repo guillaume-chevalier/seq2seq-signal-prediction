@@ -66,7 +66,7 @@ def create_inference_decoder(step: TensorflowV1ModelStep, encoder_state, decoder
         sample_shape=[step.hyperparams['input_dim']],
         sample_dtype=tf.dtypes.float32,
         start_inputs=start_inputs,
-        end_fn=lambda sample_ids: False
+        end_fn=lambda sample_ids: False,
     )
 
     output = create_decoder_outputs(step, helper, encoder_state, decoder_cell)
@@ -82,7 +82,11 @@ def create_decoder_outputs(step, helper, encoder_state, decoder_cell):
         output_layer=tf.layers.Dense(units=step.hyperparams['output_dim'])
     )
 
-    decoder_outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(decoder=decoder, impute_finished=True)
+    decoder_outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
+        decoder=decoder,
+        impute_finished=True,
+        maximum_iterations=step.hyperparams['output_size']
+    )
 
     return decoder_outputs.rnn_output
 
@@ -128,7 +132,7 @@ def create_feed_dict(step: TensorflowV1ModelStep, data_inputs, expected_outputs)
 
 def to_numpy_metric_wrapper(metric_fun):
     def metric(data_inputs, expected_outputs):
-        return metric_fun(np.array(data_inputs), np.array(expected_outputs))
+        return metric_fun(np.array(data_inputs)[..., 0], np.array(expected_outputs)[..., 0])
 
     return metric
 
@@ -161,6 +165,7 @@ if __name__ == '__main__':
             'batch_size': BATCH_SIZE,
             'lambda_loss_amount': 0.003,
             'output_dim': output_dim,
+            'output_size': 5,
             'input_dim': input_dim,
             'hidden_dim': 12,
             'layers_stacked_count': 2,
