@@ -173,13 +173,13 @@ if __name__ == '__main__':
             'lr_decay': 0.92,
             'momentum': 0.5
         })),
-        validation_size=0.1,
+        validation_size=0.15,
         batch_size=BATCH_SIZE,
         batch_metrics={'mse': to_numpy_metric_wrapper(mean_squared_error)},
         shuffle_in_each_epoch_at_train=True,
         n_epochs=EPOCHS,
         epochs_metrics={'mse': to_numpy_metric_wrapper(mean_squared_error)},
-        scoring_function=mean_squared_error
+        scoring_function=to_numpy_metric_wrapper(mean_squared_error)
     )
 
     X, Y = generate_x_y_data(isTrain=True, batch_size=BATCH_SIZE)
