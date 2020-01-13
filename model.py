@@ -17,10 +17,10 @@ from steps import MeanStdNormalizer
 
 def create_model(step: Tensorflow2ModelStep):
     # shape: (batch_size, seq_length, input_dim)
-    encoder_inputs = Input(shape=(None, step.hyperparams['input_dim']))
+    encoder_inputs = Input(shape=(None, step.hyperparams['input_dim']), dtype=tf.dtypes.float32)
 
     # shape: (batch_size, seq_length, output_dim)
-    decoder_inputs = Input(shape=(None, step.hyperparams['output_dim']))
+    decoder_inputs = Input(shape=(None, step.hyperparams['output_dim']), dtype=tf.dtypes.float32)
 
     encoder_state = create_encoder(step, encoder_inputs)
     decoder_outputs = create_decoder(step, encoder_state, decoder_inputs)
@@ -45,7 +45,14 @@ def create_decoder(step: Tensorflow2ModelStep, encoder_states, decoder_inputs):
 
 
 def create_inputs(step: Tensorflow2ModelStep, data_inputs, expected_outputs):
-    return [tf.convert_to_tensor(data_inputs), np.zeros(expected_outputs.shape)]
+    if expected_outputs is not None:
+        decoder_inputs = tf.convert_to_tensor(np.zeros(expected_outputs.shape, dtype=np.float32), dtype=tf.dtypes.float32)
+    else:
+        decoder_inputs = tf.convert_to_tensor(np.zeros(data_inputs.shape, dtype=np.float32), dtype=tf.dtypes.float32)
+
+    data_inputs_tensor = tf.convert_to_tensor(data_inputs, dtype=tf.dtypes.float32)
+
+    return [data_inputs_tensor, decoder_inputs]
 
 
 def create_stacked_rnn_cells(step: Tensorflow2ModelStep):
@@ -56,78 +63,11 @@ def create_stacked_rnn_cells(step: Tensorflow2ModelStep):
     return cells
 
 
-# class EncoderDecoderRNN(Model):
-#     def __init__(self, hyperparams: HyperparameterSamples):
-#         super(EncoderDecoderRNN, self).__init__()
-#         self.hyperparams = hyperparams
-#
-#         self.encoder_inputs = Input(shape=(None, self.hyperparams['input_dim']))
-#         self.decoder_inputs = Input(shape=(None, self.hyperparams['output_dim']))
-#
-#     def create_encoder(self):
-#         encoder = RNN(self.create_stacked_rnn_cells(), return_state=True)
-#         encoder_outputs_and_states = encoder(self.encoder_inputs)
-#
-#         return encoder_outputs_and_states[1:]
-#
-#     def create_decoder(self, step: Tensorflow2ModelStep, encoder_states):
-#         decoder_lstm = RNN(self.create_stacked_rnn_cells(), return_sequences=True, return_state=True)
-#
-#         decoder_outputs_and_states = decoder_lstm(self.decoder_inputs, initial_state=encoder_states)
-#         decoder_outputs = decoder_outputs_and_states[0]
-#         decoder_dense = Dense(step.hyperparams['output_dim'])
-#
-#         return decoder_dense(decoder_outputs)
-#
-#     def call(self, inputs):
-#         encoder_outputs = self.encoder(inputs)
-#         decoder_outputs = self.decoder(encoder_outputs)
-#         return decoder_outputs
-#
-#
-# class Encoder(tf.keras.layers):
-#     def __init__(self, hyperparams: HyperparameterSamples):
-#         self.hyperparams = hyperparams
-#         self.rnn = RNN(self.create_stacked_rnn_cells(), return_state=True)
-#
-#     def call(self, inputs):
-#         encoder_outputs_and_states = self.encoder(inputs)
-#         return encoder_outputs_and_states[1:]
-#
-#     def create_stacked_rnn_cells(self):
-#         cells = []
-#         for _ in range(self.hyperparams['layers_stacked_count']):
-#             cells.append(GRUCell(self.hyperparams['hidden_dim']))
-#         return cells
-#
-#
-# class Decoder(tf.keras.layers):
-#     def __init__(self, hyperparams: HyperparameterSamples):
-#         self.hyperparams = hyperparams
-#         self.rnn = RNN(self.create_stacked_rnn_cells(), return_sequences=True, return_state=True)
-#         self.output_layer = Dense(self.hyperparams['output_dim'])
-#
-#     def call(self, inputs):
-#         decoder_inputs, encoder_outputs = inputs
-#
-#         decoder_outputs_and_states = self.rnn(decoder_inputs, initial_state=encoder_outputs)
-#         decoder_outputs = decoder_outputs_and_states[0]
-#
-#         return self.output_layer(decoder_outputs)
-#
-#     def create_stacked_rnn_cells(self):
-#         cells = []
-#         for _ in range(self.hyperparams['layers_stacked_count']):
-#             cells.append(GRUCell(self.hyperparams['hidden_dim']))
-#         return cells
-
-
 def create_loss(step: Tensorflow2ModelStep, expected_outputs, predicted_outputs):
     regularizer = tf.keras.regularizers.l2(step.hyperparams['lambda_loss_amount'])
-    reg_loss = regularizer(step.model.losses)
-    output_loss = tf.reduce_mean(tf.nn.l2_loss(predicted_outputs - expected_outputs))
+    l2_loss = tf.nn.l2_loss(tf.subtract(predicted_outputs, expected_outputs))
 
-    return output_loss + reg_loss
+    return regularizer(l2_loss)
 
 
 def create_optimizer(step: TensorflowV1ModelStep):
@@ -139,7 +79,7 @@ def create_optimizer(step: TensorflowV1ModelStep):
 
 
 class SignalPredictionPipeline(Pipeline):
-    BATCH_SIZE = 5
+    BATCH_SIZE = 100
     LAMBDA_LOSS_AMOUNT = 0.003
     OUTPUT_DIM = 2
     INPUT_DIM = 2
@@ -159,7 +99,9 @@ class SignalPredictionPipeline(Pipeline):
                 create_model=create_model,
                 create_loss=create_loss,
                 create_optimizer=create_optimizer,
-                create_inputs=create_inputs
+                create_inputs=create_inputs,
+                expected_outputs_dtype=tf.dtypes.float32,
+                data_inputs_dtype=tf.dtypes.float32
             ).set_hyperparams(HyperparameterSamples({
                 'batch_size': self.BATCH_SIZE,
                 'lambda_loss_amount': self.LAMBDA_LOSS_AMOUNT,
