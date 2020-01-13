@@ -64,10 +64,9 @@ def create_stacked_rnn_cells(step: Tensorflow2ModelStep):
 
 
 def create_loss(step: Tensorflow2ModelStep, expected_outputs, predicted_outputs):
-    regularizer = tf.keras.regularizers.l2(step.hyperparams['lambda_loss_amount'])
-    l2_loss = tf.nn.l2_loss(tf.subtract(predicted_outputs, expected_outputs))
-
-    return regularizer(l2_loss)
+    l2 = step.hyperparams['lambda_loss_amount'] * sum(tf.nn.l2_loss(tf_var) for tf_var in step.model.trainable_variables)
+    output_loss = tf.reduce_mean(tf.nn.l2_loss(tf.subtract(predicted_outputs, expected_outputs)))
+    return output_loss + l2
 
 
 def create_optimizer(step: TensorflowV1ModelStep):
@@ -85,7 +84,7 @@ class SignalPredictionPipeline(Pipeline):
     INPUT_DIM = 2
     HIDDEN_DIM = 12
     LAYERS_STACKED_COUNT = 2
-    LEARNING_RATE = 0.1
+    LEARNING_RATE = 0.001
     LR_DECAY = 0.92
     MOMENTUM = 0.5
     OUTPUT_SIZE = 5
