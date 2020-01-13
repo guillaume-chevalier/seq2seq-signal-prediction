@@ -4,103 +4,54 @@ from neuraxle.api import DeepLearningPipeline
 from neuraxle.hyperparams.space import HyperparameterSamples
 from neuraxle.pipeline import Pipeline
 from sklearn.metrics import mean_squared_error
+from tensorflow_core.python.keras import Input, Model
+from tensorflow_core.python.keras.layers import GRUCell, RNN, Dense
 
 from datasets import generate_x_y_data_v1, generate_x_y_data_v2, generate_x_y_data_v3, generate_x_y_data_v4
 from neuraxle_tensorflow.tensorflow_v1 import TensorflowV1ModelStep
+from neuraxle_tensorflow.tensorflow_v2 import Tensorflow2ModelStep
 from plotting import plot_metric
 
 GO_TOKEN = -1.
 
 
-def create_graph(step: TensorflowV1ModelStep):
+def create_model(step: Tensorflow2ModelStep):
     # shape: (batch_size, seq_length, input_dim)
-    data_inputs = tf.placeholder(
-        dtype=tf.float32,
-        shape=[None, None, step.hyperparams['input_dim']],
-        name='data_inputs'
-    )
 
     # shape: (batch_size, seq_length, input_dim)
-    expected_outputs = tf.placeholder(
-        dtype=tf.float32,
-        shape=[None, None, step.hyperparams['output_dim']],
-        name='expected_outputs'
-    )
 
     # shape: (batch_size)
-    target_sequence_length = tf.placeholder(dtype=tf.int32, shape=[None], name='expected_outputs_length')
+    encoder_state = create_encoder(step)
+    decoder_outputs = create_decoder(step, encoder_state)
 
-    encoder_state = create_encoder(step, data_inputs)
-
-    decoder_cell = create_stacked_rnn(step)
-    decoder_outputs_training = create_training_decoder(step, encoder_state, decoder_cell)
-    decoder_outputs_inference = create_inference_decoder(step, encoder_state, decoder_cell)
-
-    return decoder_outputs_training, decoder_outputs_inference
+    return Model([encoder_inputs, decoder_inputs], decoder_outputs)
 
 
-def create_encoder(step, data_inputs):
-    encoder_cell = create_stacked_rnn(step)
-    encoder_outputs, encoder_state = tf.nn.dynamic_rnn(cell=encoder_cell, inputs=data_inputs, dtype=tf.float32)
+def create_encoder(step: Tensorflow2ModelStep):
+    encoder_inputs = Input(shape=(None, step.hyperparams['input_dim']))
+    encoder = RNN(create_stacked_rnn_cells(step), return_state=True)
+    encoder_outputs_and_states = encoder(encoder_inputs)
 
-    return encoder_state
-
-
-def create_training_decoder(step: TensorflowV1ModelStep, encoder_state, decoder_cell):
-    go_tokens = tf.constant(GO_TOKEN, shape=[step.hyperparams['batch_size'], 1, step.hyperparams['output_dim']])
-    inputs = tf.concat([go_tokens, step['expected_outputs']], axis=1)
-
-    helper = tf.contrib.seq2seq.TrainingHelper(
-        inputs=inputs,
-        sequence_length=step['expected_outputs_length']
-    )
-
-    output = create_decoder_outputs(step, helper, encoder_state, decoder_cell)
-
-    return output
+    return encoder_outputs_and_states[1:]
 
 
-def create_inference_decoder(step: TensorflowV1ModelStep, encoder_state, decoder_cell):
-    start_inputs = tf.constant(GO_TOKEN, shape=[step.hyperparams['batch_size'], step.hyperparams['output_dim']])
+def create_decoder(step: Tensorflow2ModelStep, encoder_states):
+    decoder_inputs = Input(shape=(None, step.hyperparams['output_dim']))
 
-    helper = tf.contrib.seq2seq.InferenceHelper(
-        sample_fn=lambda x: x,
-        sample_shape=[step.hyperparams['input_dim']],
-        sample_dtype=tf.dtypes.float32,
-        start_inputs=start_inputs,
-        end_fn=lambda sample_ids: False,
-    )
+    decoder_lstm = RNN(create_stacked_rnn_cells(step), return_sequences=True, return_state=True)
 
-    output = create_decoder_outputs(step, helper, encoder_state, decoder_cell)
-
-    return output
+    decoder_outputs_and_states = decoder_lstm(decoder_inputs, initial_state=encoder_states)
+    decoder_outputs = decoder_outputs_and_states[0]
+    decoder_dense = Dense(step.hyperparams['output_dim'])
+    return decoder_dense(decoder_outputs)
 
 
-def create_decoder_outputs(step, helper, encoder_state, decoder_cell):
-    decoder = tf.contrib.seq2seq.BasicDecoder(
-        cell=decoder_cell,
-        helper=helper,
-        initial_state=encoder_state,
-        output_layer=tf.layers.Dense(units=step.hyperparams['output_dim'])
-    )
-
-    decoder_outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
-        decoder=decoder,
-        impute_finished=True,
-        maximum_iterations=step.hyperparams['output_size']
-    )
-
-    return decoder_outputs.rnn_output
-
-
-def create_stacked_rnn(step: TensorflowV1ModelStep):
+def create_stacked_rnn_cells(step: Tensorflow2ModelStep):
     cells = []
     for _ in range(step.hyperparams['layers_stacked_count']):
-        cells.append(tf.contrib.rnn.GRUCell(step.hyperparams['hidden_dim']))
+        cells.append(GRUCell(step.hyperparams['hidden_dim']))
 
-    cell = tf.contrib.rnn.MultiRNNCell(cells)
-
-    return cell
+    return cells
 
 
 def create_loss(step: TensorflowV1ModelStep):
@@ -119,19 +70,6 @@ def create_optimizer(step: TensorflowV1ModelStep):
     )
 
 
-def create_feed_dict(step: TensorflowV1ModelStep, data_inputs, expected_outputs):
-    expected_outputs_length = []
-    for expected_output in expected_outputs:
-        expected_outputs_length.append(len(expected_output))
-
-    # shape: (batch_size)
-    expected_outputs_length = np.array(expected_outputs_length, dtype=np.int32)
-
-    return {
-        step['expected_outputs_length']: expected_outputs_length
-    }
-
-
 def to_numpy_metric_wrapper(metric_fun):
     def metric(data_inputs, expected_outputs):
         return metric_fun(np.array(data_inputs)[..., 0], np.array(expected_outputs)[..., 0])
@@ -146,19 +84,18 @@ class SignalPredictionPipeline(Pipeline):
     INPUT_DIM = 2
     HIDDEN_DIM = 12
     LAYERS_STACKED_COUNT = 2
-    LEARNING_RATE = 0.006
+    LEARNING_RATE = 0.1
     LR_DECAY = 0.92
     MOMENTUM = 0.5
     OUTPUT_SIZE = 5
-    EPOCHS = 150
+    EPOCHS = 20
 
     def __init__(self):
         super().__init__([
-            TensorflowV1ModelStep(
-                create_graph=create_graph,
+            Tensorflow2ModelStep(
+                create_model=create_model,
                 create_loss=create_loss,
-                create_optimizer=create_optimizer,
-                create_feed_dict=create_feed_dict
+                create_optimizer=create_optimizer
             ).set_hyperparams(HyperparameterSamples({
                 'batch_size': self.BATCH_SIZE,
                 'lambda_loss_amount': self.LAMBDA_LOSS_AMOUNT,
@@ -197,7 +134,12 @@ if __name__ == '__main__':
         scoring_function=to_numpy_metric_wrapper(mean_squared_error)
     )
 
-    data_inputs, expected_outputs = generate_x_y_data(isTrain=True, batch_size=SignalPredictionPipeline.BATCH_SIZE)
+    data_inputs, expected_outputs = generate_x_y_data(isTrain=True, batch_size=5)
+    for i in range(10):
+        di, eo = generate_x_y_data(isTrain=True, batch_size=5)
+        data_inputs = np.concatenate([data_inputs, di])
+        expected_outputs = np.concatenate([expected_outputs, eo])
+
     pipeline, outputs = pipeline.fit_transform(data_inputs, expected_outputs)
 
     mse_train = pipeline.get_epoch_metric_train('mse')
