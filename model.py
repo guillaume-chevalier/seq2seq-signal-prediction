@@ -90,7 +90,7 @@ class SignalPredictionPipeline(Pipeline):
     MOMENTUM = 0.5
     OUTPUT_SIZE = 5
     WINDOW_SIZE = 10
-    EPOCHS = 20
+    EPOCHS = 50
 
     def __init__(self):
         super().__init__([
@@ -144,7 +144,7 @@ def main():
 
     plot_metric(mse_train, mse_validation, xlabel='epoch', ylabel='mse', title='Model Mean Squared Error')
 
-    loss = pipeline.get_step_by_name('TensorflowV1ModelStep').loss
+    loss = pipeline.get_step_by_name('Tensorflow2ModelStep').losses
     plot_metric(loss, xlabel='batch', ylabel='l2_loss', title='Model L2 Loss')
 
 
