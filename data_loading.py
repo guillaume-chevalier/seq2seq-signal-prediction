@@ -4,7 +4,7 @@ import requests
 from steps import WindowTimeSeries
 
 
-def fetch_data(window_size):
+def fetch_data(window_size_past, window_size_future):
     data_inputs_usd = load_currency("USD")
     data_inputs_eur = load_currency("EUR")
 
@@ -12,7 +12,7 @@ def fetch_data(window_size):
     data_inputs_eur = np.expand_dims(np.array(data_inputs_eur), axis=1)
     data_inputs = np.concatenate((data_inputs_usd, data_inputs_eur), axis=1)
 
-    return WindowTimeSeries(window_size=window_size).transform((data_inputs, None))
+    return WindowTimeSeries(window_size_past=window_size_past, window_size_future=window_size_future).transform((data_inputs, None))
 
 
 def load_currency(currency):

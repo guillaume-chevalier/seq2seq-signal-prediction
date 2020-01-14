@@ -3,6 +3,7 @@ import tensorflow as tf
 from neuraxle.api import DeepLearningPipeline
 from neuraxle.hyperparams.space import HyperparameterSamples
 from neuraxle.pipeline import Pipeline
+from neuraxle.steps.loop import ForEachDataInput
 from sklearn.metrics import mean_squared_error
 from tensorflow_core.python.keras import Input, Model
 from tensorflow_core.python.keras.layers import GRUCell, RNN, Dense
@@ -12,7 +13,7 @@ from data_loading import fetch_data
 from neuraxle_tensorflow.tensorflow_v1 import TensorflowV1ModelStep
 from neuraxle_tensorflow.tensorflow_v2 import Tensorflow2ModelStep
 from plotting import plot_metric
-from steps import MeanStdNormalizer
+from steps import MeanStdNormalizer, ToNumpy
 
 
 def create_model(step: Tensorflow2ModelStep):
@@ -22,37 +23,31 @@ def create_model(step: Tensorflow2ModelStep):
     # shape: (batch_size, seq_length, output_dim)
     decoder_inputs = Input(shape=(None, step.hyperparams['output_dim']), dtype=tf.dtypes.float32)
 
-    encoder_state = create_encoder(step, encoder_inputs)
-    decoder_outputs = create_decoder(step, encoder_state, decoder_inputs)
+    last_encoder_outputs, last_encoders_states = create_encoder(step, encoder_inputs)
+    decoder_outputs = create_decoder(step, last_encoder_outputs, last_encoders_states)
 
     return Model([encoder_inputs, decoder_inputs], decoder_outputs)
 
 
 def create_encoder(step: Tensorflow2ModelStep, encoder_inputs):
-    encoder = RNN(create_stacked_rnn_cells(step), return_state=True)
-    encoder_outputs_and_states = encoder(encoder_inputs)
+    encoder = RNN(create_stacked_rnn_cells(step), return_sequences=False, return_state=True)
+    last_encoder_outputs_and_states = encoder(encoder_inputs)
 
-    return encoder_outputs_and_states[1:]
+    last_encoder_outputs, *last_encoders_states = last_encoder_outputs_and_states
+    return last_encoder_outputs, last_encoders_states
 
 
-def create_decoder(step: Tensorflow2ModelStep, encoder_states, decoder_inputs):
-    decoder_lstm = RNN(create_stacked_rnn_cells(step), return_sequences=True, return_state=True)
+def create_decoder(step: Tensorflow2ModelStep, last_encoder_outputs, last_encoders_states):
+    decoder_lstm = RNN(create_stacked_rnn_cells(step), return_sequences=True, return_state=False)
 
-    decoder_outputs_and_states = decoder_lstm(decoder_inputs, initial_state=encoder_states)
-    decoder_outputs = decoder_outputs_and_states[0]
+    last_encoder_output = tf.expand_dims(last_encoder_outputs, axis=1)
+    replicated_last_encoder_output = tf.repeat(input=last_encoder_output,
+                                               repeats=step.hyperparams['window_size_future'], axis=1)
+    decoder_outputs = decoder_lstm(replicated_last_encoder_output, initial_state=last_encoders_states)
+
     decoder_dense = Dense(step.hyperparams['output_dim'])
+
     return decoder_dense(decoder_outputs)
-
-
-def create_inputs(step: Tensorflow2ModelStep, data_inputs, expected_outputs):
-    if expected_outputs is not None:
-        decoder_inputs = tf.convert_to_tensor(np.zeros(expected_outputs.shape, dtype=np.float32), dtype=tf.dtypes.float32)
-    else:
-        decoder_inputs = tf.convert_to_tensor(np.zeros(data_inputs.shape, dtype=np.float32), dtype=tf.dtypes.float32)
-
-    data_inputs_tensor = tf.convert_to_tensor(data_inputs, dtype=tf.dtypes.float32)
-
-    return [data_inputs_tensor, decoder_inputs]
 
 
 def create_stacked_rnn_cells(step: Tensorflow2ModelStep):
@@ -86,41 +81,32 @@ def create_optimizer(step: TensorflowV1ModelStep):
 
 
 class SignalPredictionPipeline(Pipeline):
-    BATCH_SIZE = 10
-    LAMBDA_LOSS_AMOUNT = 0.001
-    OUTPUT_DIM = 2
-    INPUT_DIM = 2
-    HIDDEN_DIM = 20
-    LAYERS_STACKED_COUNT = 2
-    LEARNING_RATE = 0.006
-    LR_DECAY = 0.75
-    MOMENTUM = 0.5
-    OUTPUT_SIZE = 5
-    WINDOW_SIZE = 5
-    EPOCHS = 50
+    HYPERPARAMS = HyperparameterSamples({
+        'epochs': 10,
+        'batch_size': 100,
+        'lambda_loss_amount': 0.003,
+        'output_dim': 2,
+        'input_dim': 2,
+        'hidden_dim': 42,
+        'layers_stacked_count': 2,
+        'learning_rate': 0.005,
+        'lr_decay': 0.92,
+        'momentum': 0.5,
+        'window_size_future': 15
+    })
 
     def __init__(self):
         super().__init__([
-            MeanStdNormalizer(),
+            ForEachDataInput(MeanStdNormalizer()),
+            ToNumpy(),
             Tensorflow2ModelStep(
                 create_model=create_model,
                 create_loss=create_loss,
                 create_optimizer=create_optimizer,
-                create_inputs=create_inputs,
                 expected_outputs_dtype=tf.dtypes.float32,
-                data_inputs_dtype=tf.dtypes.float32
-            ).set_hyperparams(HyperparameterSamples({
-                'batch_size': self.BATCH_SIZE,
-                'lambda_loss_amount': self.LAMBDA_LOSS_AMOUNT,
-                'output_dim': self.OUTPUT_DIM,
-                'output_size': self.OUTPUT_SIZE,
-                'input_dim': self.INPUT_DIM,
-                'hidden_dim': self.HIDDEN_DIM,
-                'layers_stacked_count': self.LAYERS_STACKED_COUNT,
-                'learning_rate': self.LEARNING_RATE,
-                'lr_decay': self.LR_DECAY,
-                'momentum': self.MOMENTUM
-            })),
+                data_inputs_dtype=tf.dtypes.float32,
+                print_loss=True
+            ).set_hyperparams(self.HYPERPARAMS)
         ])
 
 
@@ -135,15 +121,17 @@ def main():
     pipeline = DeepLearningPipeline(
         SignalPredictionPipeline(),
         validation_size=0.15,
-        batch_size=SignalPredictionPipeline.BATCH_SIZE,
+        batch_size=SignalPredictionPipeline.HYPERPARAMS['batch_size'],
         batch_metrics={'mse': to_numpy_metric_wrapper(mean_squared_error)},
         shuffle_in_each_epoch_at_train=True,
-        n_epochs=SignalPredictionPipeline.EPOCHS,
+        n_epochs=SignalPredictionPipeline.HYPERPARAMS['epochs'],
         epochs_metrics={'mse': to_numpy_metric_wrapper(mean_squared_error)},
         scoring_function=to_numpy_metric_wrapper(mean_squared_error)
     )
 
-    data_inputs, expected_outputs = fetch_data(window_size=SignalPredictionPipeline.WINDOW_SIZE)
+    data_inputs, expected_outputs = fetch_data(window_size_past=20,
+                                               window_size_future=SignalPredictionPipeline.HYPERPARAMS[
+                                                   'window_size_future'])
     pipeline, outputs = pipeline.fit_transform(data_inputs, expected_outputs)
 
     mse_train = pipeline.get_epoch_metric_train('mse')
