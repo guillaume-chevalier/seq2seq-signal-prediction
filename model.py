@@ -64,8 +64,16 @@ def create_stacked_rnn_cells(step: Tensorflow2ModelStep):
 
 
 def create_loss(step: Tensorflow2ModelStep, expected_outputs, predicted_outputs):
-    l2 = step.hyperparams['lambda_loss_amount'] * sum(tf.nn.l2_loss(tf_var) for tf_var in step.model.trainable_variables)
-    output_loss = tf.reduce_mean(tf.nn.l2_loss(tf.subtract(predicted_outputs, expected_outputs)))
+    l2 = step.hyperparams['lambda_loss_amount'] * sum(
+        tf.reduce_mean(tf.nn.l2_loss(tf_var))
+        for tf_var in step.model.trainable_variables
+    )
+
+    output_loss = sum(
+        tf.reduce_mean(tf.nn.l2_loss(pred - expected))
+        for pred, expected in zip(predicted_outputs, expected_outputs)
+    )
+
     return output_loss + l2
 
 
@@ -79,17 +87,17 @@ def create_optimizer(step: TensorflowV1ModelStep):
 
 class SignalPredictionPipeline(Pipeline):
     BATCH_SIZE = 10
-    LAMBDA_LOSS_AMOUNT = 0.003
+    LAMBDA_LOSS_AMOUNT = 0.001
     OUTPUT_DIM = 2
     INPUT_DIM = 2
     HIDDEN_DIM = 20
     LAYERS_STACKED_COUNT = 2
-    LEARNING_RATE = 0.001
-    LR_DECAY = 0.92
-    MOMENTUM = 0.05
+    LEARNING_RATE = 0.006
+    LR_DECAY = 0.75
+    MOMENTUM = 0.5
     OUTPUT_SIZE = 5
     WINDOW_SIZE = 5
-    EPOCHS = 10
+    EPOCHS = 50
 
     def __init__(self):
         super().__init__([
