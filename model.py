@@ -78,7 +78,7 @@ def create_optimizer(step: TensorflowV1ModelStep):
 
 
 class SignalPredictionPipeline(Pipeline):
-    BATCH_SIZE = 100
+    BATCH_SIZE = 10
     LAMBDA_LOSS_AMOUNT = 0.003
     OUTPUT_DIM = 2
     INPUT_DIM = 2
@@ -89,7 +89,7 @@ class SignalPredictionPipeline(Pipeline):
     MOMENTUM = 0.05
     OUTPUT_SIZE = 5
     WINDOW_SIZE = 5
-    EPOCHS = 150
+    EPOCHS = 10
 
     def __init__(self):
         super().__init__([
