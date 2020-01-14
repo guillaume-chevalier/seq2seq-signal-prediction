@@ -1,3 +1,5 @@
+from typing import Callable
+
 import numpy as np
 import tensorflow as tf
 from neuraxle.api import DeepLearningPipeline
@@ -67,7 +69,7 @@ def create_loss(step: Tensorflow2ModelStep, expected_outputs, predicted_outputs)
     output_loss = sum(
         tf.reduce_mean(tf.nn.l2_loss(pred - expected))
         for pred, expected in zip(predicted_outputs, expected_outputs)
-    )
+    ) / float(len(predicted_outputs))
 
     return output_loss + l2
 
@@ -92,7 +94,7 @@ class SignalPredictionPipeline(Pipeline):
         'learning_rate': 0.005,
         'lr_decay': 0.92,
         'momentum': 0.5,
-        'window_size_future': 15
+        'window_size_future': 40
     })
 
     def __init__(self):
@@ -110,26 +112,36 @@ class SignalPredictionPipeline(Pipeline):
         ])
 
 
-def to_numpy_metric_wrapper(metric_fun):
+def metric_2d_to_3d_wrapper(metric_fun: Callable, index_column_for_metric=0):
     def metric(data_inputs, expected_outputs):
         return metric_fun(np.array(data_inputs)[..., 0], np.array(expected_outputs)[..., 0])
 
     return metric
 
 
+# EpochRepeater(
+#   ValidationSplitWrapper([
+#       TrainOnlyWrapper(Shuffled()),
+#       MiniBatchSequentialPipeline([pipeline!]
+#   ])
+# )
+
 def main():
+    batch_size = 300
+    epochs = 150
+
     pipeline = DeepLearningPipeline(
         SignalPredictionPipeline(),
         validation_size=0.15,
-        batch_size=SignalPredictionPipeline.HYPERPARAMS['batch_size'],
-        batch_metrics={'mse': to_numpy_metric_wrapper(mean_squared_error)},
+        batch_size=batch_size,
+        batch_metrics={'mse': metric_2d_to_3d_wrapper(mean_squared_error)},
         shuffle_in_each_epoch_at_train=True,
-        n_epochs=SignalPredictionPipeline.HYPERPARAMS['epochs'],
-        epochs_metrics={'mse': to_numpy_metric_wrapper(mean_squared_error)},
-        scoring_function=to_numpy_metric_wrapper(mean_squared_error)
+        n_epochs=epochs,
+        epochs_metrics={'mse': metric_2d_to_3d_wrapper(mean_squared_error)},
+        scoring_function=metric_2d_to_3d_wrapper(mean_squared_error)
     )
 
-    data_inputs, expected_outputs = fetch_data(window_size_past=20,
+    data_inputs, expected_outputs = fetch_data(window_size_past=40,
                                                window_size_future=SignalPredictionPipeline.HYPERPARAMS[
                                                    'window_size_future'])
     pipeline, outputs = pipeline.fit_transform(data_inputs, expected_outputs)
