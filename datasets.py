@@ -61,7 +61,7 @@ def generate_x_y_data_v1(isTrain, batch_size):
     return batch_x, batch_y
 
 
-def generate_x_y_data_two_freqs(isTrain, batch_size, seq_length):
+def generate_x_y_data_two_freqs(batch_size, seq_length):
     batch_x = []
     batch_y = []
     for _ in range(batch_size):

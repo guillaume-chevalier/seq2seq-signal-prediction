@@ -11,7 +11,7 @@ from tensorflow_core.python.keras import Input, Model
 from tensorflow_core.python.keras.layers import GRUCell, RNN, Dense
 from tensorflow_core.python.training.rmsprop import RMSPropOptimizer
 
-from data_loading import fetch_data
+from data_loading import fetch_data, generate_x_y_data_v1, generate_x_y_data_v2, generate_x_y_data_v3
 from neuraxle_tensorflow.tensorflow_v1 import TensorflowV1ModelStep
 from neuraxle_tensorflow.tensorflow_v2 import Tensorflow2ModelStep
 from plotting import plot_metric
@@ -84,12 +84,10 @@ def create_optimizer(step: TensorflowV1ModelStep):
 
 class SignalPredictionPipeline(Pipeline):
     HYPERPARAMS = HyperparameterSamples({
-        'epochs': 10,
-        'batch_size': 100,
-        'lambda_loss_amount': 0.003,
+        'lambda_loss_amount': 0.005,
         'output_dim': 2,
         'input_dim': 2,
-        'hidden_dim': 42,
+        'hidden_dim': 64,
         'layers_stacked_count': 2,
         'learning_rate': 0.005,
         'lr_decay': 0.92,
@@ -127,8 +125,8 @@ def metric_2d_to_3d_wrapper(metric_fun: Callable, index_column_for_metric=0):
 # )
 
 def main():
-    batch_size = 300
-    epochs = 150
+    batch_size = 30
+    epochs = 200
 
     pipeline = DeepLearningPipeline(
         SignalPredictionPipeline(),
@@ -141,9 +139,15 @@ def main():
         scoring_function=metric_2d_to_3d_wrapper(mean_squared_error)
     )
 
-    data_inputs, expected_outputs = fetch_data(window_size_past=40,
-                                               window_size_future=SignalPredictionPipeline.HYPERPARAMS[
-                                                   'window_size_future'])
+    data_inputs, expected_outputs = fetch_data(window_size_past=40, window_size_future=SignalPredictionPipeline.HYPERPARAMS['window_size_future'])
+    # data_inputs, expected_outputs = generate_x_y_data_v1(batch_size=5, sequence_length=10)
+    # data_inputs, expected_outputs = generate_x_y_data_v2(batch_size=5, sequence_length=15)
+    # data_inputs, expected_outputs = generate_x_y_data_v3(batch_size=5, sequence_length=30)
+
+    pipeline.get_step_by_name("Tensorflow2ModelStep").update_hyperparams({
+        'window_size_future': 40
+    })
+
     pipeline, outputs = pipeline.fit_transform(data_inputs, expected_outputs)
 
     mse_train = pipeline.get_epoch_metric_train('mse')
