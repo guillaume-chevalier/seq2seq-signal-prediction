@@ -10,8 +10,10 @@ def plot_metric(metric_train, metric_validation=None, xlabel='x', ylabel='y', ti
         legend.append('validation')
 
     plt.xlabel(xlabel)
-    plt.xlabel(ylabel)
+    plt.ylabel(ylabel)
     plt.title(title)
 
     plt.legend(legend, loc='upper left')
+    plt.savefig(title + '.png')
     plt.show()
+    plt.close()

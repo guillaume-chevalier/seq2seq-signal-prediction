@@ -84,12 +84,12 @@ def create_optimizer(step: TensorflowV1ModelStep):
 
 class SignalPredictionPipeline(Pipeline):
     HYPERPARAMS = HyperparameterSamples({
-        'lambda_loss_amount': 0.005,
+        'lambda_loss_amount': 0.003,
         'output_dim': 2,
         'input_dim': 2,
-        'hidden_dim': 64,
+        'hidden_dim': 12,
         'layers_stacked_count': 2,
-        'learning_rate': 0.005,
+        'learning_rate': 0.006,
         'lr_decay': 0.92,
         'momentum': 0.5,
         'window_size_future': 40
@@ -125,8 +125,8 @@ def metric_2d_to_3d_wrapper(metric_fun: Callable, index_column_for_metric=0):
 # )
 
 def main():
-    batch_size = 30
-    epochs = 200
+    batch_size = 100
+    epochs = 50
 
     pipeline = DeepLearningPipeline(
         SignalPredictionPipeline(),
