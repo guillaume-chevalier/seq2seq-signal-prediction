@@ -82,14 +82,14 @@ class SignalPredictionPipeline(Pipeline):
     LAMBDA_LOSS_AMOUNT = 0.003
     OUTPUT_DIM = 2
     INPUT_DIM = 2
-    HIDDEN_DIM = 12
+    HIDDEN_DIM = 20
     LAYERS_STACKED_COUNT = 2
     LEARNING_RATE = 0.001
     LR_DECAY = 0.92
-    MOMENTUM = 0.5
+    MOMENTUM = 0.05
     OUTPUT_SIZE = 5
-    WINDOW_SIZE = 10
-    EPOCHS = 50
+    WINDOW_SIZE = 5
+    EPOCHS = 150
 
     def __init__(self):
         super().__init__([
@@ -143,8 +143,9 @@ def main():
 
     plot_metric(mse_train, mse_validation, xlabel='epoch', ylabel='mse', title='Model Mean Squared Error')
 
-    loss = pipeline.get_step_by_name('Tensorflow2ModelStep').losses
-    plot_metric(loss, xlabel='batch', ylabel='l2_loss', title='Model L2 Loss')
+    loss_train = pipeline.get_step_by_name('Tensorflow2ModelStep').train_losses
+    loss_test = pipeline.get_step_by_name('Tensorflow2ModelStep').test_losses
+    plot_metric(loss_train, loss_test, xlabel='batch', ylabel='l2_loss', title='Model L2 Loss')
 
 
 if __name__ == '__main__':
