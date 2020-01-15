@@ -29,8 +29,8 @@ def plot_predictions(data_inputs, expected_outputs, predicted_outputs, save=Fals
 
 
 def plot_metrics(pipeline, exercice_number):
-    mse_train = pipeline.get_epoch_metric_train('mse')
-    mse_validation = pipeline.get_epoch_metric_validation('mse')
+    mse_train = pipeline.get_step_by_name('epoch_metrics').get_metric_train('mse')
+    mse_validation = pipeline.get_step_by_name('epoch_metrics').get_metric_validation('mse')
 
     plot_metric(mse_train, mse_validation, xlabel='epoch', ylabel='mse',
                 title='Exercice {} Model Mean Squared Error'.format(exercice_number))
