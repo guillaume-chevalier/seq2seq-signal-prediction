@@ -4,6 +4,8 @@ from typing import Callable
 import numpy as np
 import tensorflow as tf
 from neuraxle.api import DeepLearningPipeline
+from neuraxle.base import ExecutionContext, DEFAULT_CACHE_FOLDER
+from neuraxle.data_container import DataContainer
 from neuraxle.hyperparams.space import HyperparameterSamples
 from neuraxle.pipeline import Pipeline
 from neuraxle.steps.loop import ForEachDataInput
@@ -152,7 +154,7 @@ def main():
     output_dim = expected_outputs.shape[2]
 
     batch_size = 10
-    epochs = 50
+    epochs = 16
     validation_size = 0.15
 
     metrics = {'mse': metric_2d_to_3d_wrapper(mean_squared_error)}
@@ -192,32 +194,28 @@ def main():
     )
 
     pipeline, outputs = pipeline.fit_transform(data_inputs, expected_outputs)
-    plot_metrics(pipeline=pipeline, exercice_number=exercice_number)
 
-    # TODO: clean this ? apply method on Validation Split ??
     validation_index = math.floor(len(data_inputs) * (1 - validation_size))
     data_inputs_validation = data_inputs[validation_index:]
-    expected_outputs_validation = data_inputs[validation_index:]
-    predicted_outputs_validation = outputs[validation_index:]
+    expected_outputs_validation = expected_outputs[validation_index:]
 
-    # TODO: clean this ? apply method on Normalizer steps ??
-    new_di = []
-    new_eo = []
-    for di, eo in zip(data_inputs_validation, expected_outputs_validation):
-        di, eo = MeanStdNormalizer().transform((di, eo))
-        new_di.append(di)
-        new_eo.append(eo)
+    pipeline.set_train(is_train=False)
+    predicted_outputs_validation_data_container = pipeline.handle_transform(
+        DataContainer(current_ids=None, data_inputs=data_inputs_validation, expected_outputs=expected_outputs_validation),
+        ExecutionContext(DEFAULT_CACHE_FOLDER)
+    )
 
-    data_inputs_validation = new_di
-    expected_outputs_validation = new_eo
+    data_inputs_validation = np.array([MeanStdNormalizer().transform(di) for di in data_inputs_validation])
 
     for i in range(10):
         plot_predictions(
             data_inputs=data_inputs_validation[i],
-            expected_outputs=expected_outputs_validation[i],
-            predicted_outputs=predicted_outputs_validation[i],
+            expected_outputs=predicted_outputs_validation_data_container.expected_outputs[i],
+            predicted_outputs=predicted_outputs_validation_data_container.data_inputs[i],
             exercice_number=exercice_number
         )
+
+    plot_metrics(pipeline=pipeline, exercice_number=exercice_number)
 
 
 if __name__ == '__main__':
