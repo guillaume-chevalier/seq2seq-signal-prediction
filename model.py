@@ -20,10 +20,10 @@ from steps import MeanStdNormalizer, ToNumpy
 
 def create_model(step: Tensorflow2ModelStep):
     # shape: (batch_size, seq_length, input_dim)
-    encoder_inputs = Input(shape=(None, step.hyperparams['input_dim']), dtype=tf.dtypes.float32)
+    encoder_inputs = Input(shape=(None, None, step.hyperparams['input_dim']), dtype=tf.dtypes.float32)
 
     # shape: (batch_size, seq_length, output_dim)
-    decoder_inputs = Input(shape=(None, step.hyperparams['output_dim']), dtype=tf.dtypes.float32)
+    decoder_inputs = Input(shape=(None, None, step.hyperparams['output_dim']), dtype=tf.dtypes.float32)
 
     last_encoder_outputs, last_encoders_states = create_encoder(step, encoder_inputs)
     decoder_outputs = create_decoder(step, last_encoder_outputs, last_encoders_states)
@@ -116,7 +116,7 @@ def metric_2d_to_3d_wrapper(metric_fun: Callable, index_column_for_metric=0):
 
     return metric
 
-
+# TODO: use this rather than the DeepLearningPipeline for now, and add a slide for this.
 # EpochRepeater(
 #   ValidationSplitWrapper([
 #       TrainOnlyWrapper(Shuffled()),
@@ -126,7 +126,7 @@ def metric_2d_to_3d_wrapper(metric_fun: Callable, index_column_for_metric=0):
 
 def main():
     batch_size = 100
-    epochs = 50
+    epochs = 20
 
     pipeline = DeepLearningPipeline(
         SignalPredictionPipeline(),
@@ -140,9 +140,11 @@ def main():
     )
 
     data_inputs, expected_outputs = fetch_data(window_size_past=40, window_size_future=SignalPredictionPipeline.HYPERPARAMS['window_size_future'])
-    # data_inputs, expected_outputs = generate_x_y_data_v1(batch_size=5, sequence_length=10)
-    # data_inputs, expected_outputs = generate_x_y_data_v2(batch_size=5, sequence_length=15)
-    # data_inputs, expected_outputs = generate_x_y_data_v3(batch_size=5, sequence_length=30)
+    # TODO: smart generators that never returns the same data from one epoch to another but that
+    #       are repeatable if replayed, with a np seed.
+    # data_inputs, expected_outputs = generate_x_y_data_v1(batch_size=1500, sequence_length=10)
+    # data_inputs, expected_outputs = generate_x_y_data_v2(batch_size=1500, sequence_length=15)
+    # data_inputs, expected_outputs = generate_x_y_data_v3(batch_size=1500, sequence_length=30)
 
     pipeline.get_step_by_name("Tensorflow2ModelStep").update_hyperparams({
         'window_size_future': 40
@@ -153,12 +155,15 @@ def main():
     mse_train = pipeline.get_epoch_metric_train('mse')
     mse_validation = pipeline.get_epoch_metric_validation('mse')
 
-    plot_metric(mse_train, mse_validation, xlabel='epoch', ylabel='mse', title='Model Mean Squared Error')
+    plot_metric(np.log(mse_train), np.log(mse_validation), xlabel='epoch', ylabel='log(mse)', title='Model Mean Squared Error')
 
     loss_train = pipeline.get_step_by_name('Tensorflow2ModelStep').train_losses
-    loss_test = pipeline.get_step_by_name('Tensorflow2ModelStep').test_losses
-    plot_metric(loss_train, loss_test, xlabel='batch', ylabel='l2_loss', title='Model L2 Loss')
+    loss_validation = pipeline.get_step_by_name('Tensorflow2ModelStep').test_losses
+    plot_metric(np.log(loss_train), np.log(loss_validation), xlabel='iter', ylabel='log(l2_loss)', title='Model L2 Loss')
 
 
 if __name__ == '__main__':
+    tf.debugging.set_log_device_placement(True)
+    # TODO: try GPU
+    # with tf.device('/device:GPU:0'):
     main()
