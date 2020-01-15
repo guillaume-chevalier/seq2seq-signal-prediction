@@ -11,6 +11,7 @@ from neuraxle.steps.data import EpochRepeater, DataShuffler
 from neuraxle.steps.flow import TrainOnlyWrapper
 from neuraxle.steps.loop import ForEachDataInput
 from sklearn.metrics import mean_squared_error
+from tensorflow_core.python.client import device_lib
 from tensorflow_core.python.keras import Input, Model
 from tensorflow_core.python.keras.layers import GRUCell, RNN, Dense
 from tensorflow_core.python.training.rmsprop import RMSPropOptimizer
@@ -110,11 +111,14 @@ def metric_2d_to_3d_wrapper(metric_fun: Callable):
 
 
 def main():
-    exercice_number = 2
+    exercice_number = 1
 
     data_inputs, expected_outputs = generate_data(exercice_number=exercice_number)
 
     print('exercice {}\n=================='.format(1))
+    tf.debugging.set_log_device_placement(True)
+    print('You can use the following devices: {}'.format(get_avaible_devices()))
+
     print('data_inputs shape: {} => (batch_size, sequence_length, input_dim)'.format(data_inputs.shape))
     print('expected_outputs shape: {} => (batch_size, sequence_length, input_dim)'.format(expected_outputs.shape))
 
@@ -137,7 +141,8 @@ def main():
             create_optimizer=create_optimizer,
             expected_outputs_dtype=tf.dtypes.float32,
             data_inputs_dtype=tf.dtypes.float32,
-            print_loss=True
+            print_loss=True,
+            # device_name='/device:XLA_GPU:0'
         ).set_hyperparams(seq2seq_pipeline_hyperparams).update_hyperparams(HyperparameterSamples({
             'window_size_future': sequence_length,
             'input_dim': input_dim,
@@ -182,11 +187,10 @@ def plot_predictions(data_inputs, expected_outputs, pipeline):
     ))
 
 
-if __name__ == '__main__':
-    tf.debugging.set_log_device_placement(True)
-    # TODO: try GPU
-    # with tf.device('/device:GPU:0'):
-    main()
-    # TODO: prediction charts, too. Use the chart methods of the original repo. And fix english comments that were french in the chart maybe.
+def get_avaible_devices():
+    return [x.name for x in device_lib.list_local_devices()]
 
+
+if __name__ == '__main__':
+    main()
     # TODO: how to import external code files: https://stackoverflow.com/questions/48905127/importing-py-files-in-google-colab
