@@ -23,10 +23,7 @@ def generate_data(
         return generate_data_v3(batch_size, window_size_past)
 
     if exercice_number == 4:
-        return WindowTimeSeries(
-            window_size_past=window_size_past,
-            window_size_future=window_size_future
-        ).transform((generate_data_v4(batch_size, window_size_future, window_size_past), None))
+        return generate_data_v4(batch_size, window_size_future, window_size_past)
 
 
 def generate_data_v1(batch_size, sequence_length):
@@ -181,6 +178,8 @@ def load_currency(currency):
 
 
 def generate_data_v4(batch_size, window_size_future, window_size_past):
+    if batch_size is None:
+        batch_size = 500
     if window_size_past is None:
         window_size_past = 40
     if window_size_future is None:

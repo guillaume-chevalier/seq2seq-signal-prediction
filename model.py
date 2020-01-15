@@ -111,7 +111,7 @@ def metric_2d_to_3d_wrapper(metric_fun: Callable):
 
 
 def main():
-    exercice_number = 1
+    exercice_number = 4
 
     data_inputs, expected_outputs = generate_data(exercice_number=exercice_number)
 
