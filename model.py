@@ -2,7 +2,6 @@ from typing import Callable
 
 import numpy as np
 import tensorflow as tf
-from neuraxle.base import ExecutionContext, DEFAULT_CACHE_FOLDER
 from neuraxle.data_container import DataContainer
 from neuraxle.hyperparams.space import HyperparameterSamples
 from neuraxle.metaopt.random import ValidationSplitWrapper
@@ -111,7 +110,7 @@ def metric_2d_to_3d_wrapper(metric_fun: Callable):
 
 
 def main():
-    exercice_number = 1
+    exercice_number = 2
 
     data_inputs, expected_outputs = generate_data(exercice_number=exercice_number)
 
@@ -177,14 +176,10 @@ def plot_predictions(data_inputs, expected_outputs, pipeline):
     signal_prediction_pipeline.apply('toggle_plotting')
     signal_prediction_pipeline.apply('set_max_plotted_predictions', 10)
 
-    signal_prediction_pipeline.handle_transform(
-        DataContainer(
-            current_ids=[str(i) for i in range(len(data_inputs_validation))],
-            data_inputs=data_inputs_validation,
-            expected_outputs=expected_outputs_validation
-        ),
-        ExecutionContext(DEFAULT_CACHE_FOLDER)
-    )
+    signal_prediction_pipeline.transform_data_container(DataContainer(
+        data_inputs=data_inputs_validation,
+        expected_outputs=expected_outputs_validation
+    ))
 
 
 if __name__ == '__main__':
