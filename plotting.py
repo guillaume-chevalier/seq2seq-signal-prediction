@@ -1,7 +1,45 @@
 from matplotlib import pyplot as plt
 
 
-def plot_metric(metric_train, metric_validation=None, xlabel='x', ylabel='y', title='Metric'):
+def plot_predictions(data_inputs, expected_outputs, predicted_outputs, exercice_number, save=False):
+    for predicted_output_index in range(len(predicted_outputs)):
+        plt.figure(figsize=(12, 3))
+
+        for output_dim_index in range(predicted_outputs.shape[-1]):
+            past = data_inputs[:, output_dim_index]
+            expected = expected_outputs[:, output_dim_index]
+            pred = predicted_outputs[:, output_dim_index]
+
+            label1 = "Seen (past) values" if output_dim_index == 0 else "_nolegend_"
+            label2 = "True future values" if output_dim_index == 0 else "_nolegend_"
+            label3 = "Predictions" if output_dim_index == 0 else "_nolegend_"
+
+            plt.plot(range(past.shape[0]), past, "o--b", label=label1)
+            plt.plot(range(past.shape[0], expected.shape[0] + past.shape[0]), expected, "x--b", label=label2)
+            plt.plot(range(past.shape[0], pred.shape[0] + past.shape[0]), pred, "o--y", label=label3)
+
+        plt.legend(loc='best')
+        title = "Exercice {} Predictions v.s. true values".format(exercice_number)
+        plt.title(title)
+        if save:
+            plt.savefig(title + '.png')
+        plt.show()
+
+
+def plot_metrics(pipeline, exercice_number):
+    mse_train = pipeline.get_epoch_metric_train('mse')
+    mse_validation = pipeline.get_epoch_metric_validation('mse')
+
+    plot_metric(mse_train, mse_validation, xlabel='epoch', ylabel='mse',
+                title='Exercice {} Model Mean Squared Error'.format(exercice_number))
+    loss_train = pipeline.get_step_by_name('Tensorflow2ModelStep').train_losses
+    loss_test = pipeline.get_step_by_name('Tensorflow2ModelStep').test_losses
+
+    plot_metric(loss_train, loss_test, xlabel='batch', ylabel='l2_loss',
+                title='Exercice {} Model L2 Loss'.format(exercice_number))
+
+
+def plot_metric(metric_train, metric_validation=None, xlabel='x', ylabel='y', title='Metric', save=False):
     plt.plot(range(len(metric_train)), metric_train)
 
     legend = ['training']
@@ -14,6 +52,7 @@ def plot_metric(metric_train, metric_validation=None, xlabel='x', ylabel='y', ti
     plt.title(title)
 
     plt.legend(legend, loc='upper left')
-    plt.savefig(title + '.png')
+    if save:
+        plt.savefig(title + '.png')
     plt.show()
     plt.close()

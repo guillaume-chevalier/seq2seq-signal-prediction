@@ -1,3 +1,4 @@
+import math
 from typing import Callable
 
 import numpy as np
@@ -11,10 +12,10 @@ from tensorflow_core.python.keras import Input, Model
 from tensorflow_core.python.keras.layers import GRUCell, RNN, Dense
 from tensorflow_core.python.training.rmsprop import RMSPropOptimizer
 
-from data_loading import fetch_data, generate_x_y_data_v1, generate_x_y_data_v2, generate_x_y_data_v3
+from data_loading import generate_data
 from neuraxle_tensorflow.tensorflow_v1 import TensorflowV1ModelStep
 from neuraxle_tensorflow.tensorflow_v2 import Tensorflow2ModelStep
-from plotting import plot_metric
+from plotting import plot_predictions
 from steps import MeanStdNormalizer, ToNumpy
 
 
@@ -95,7 +96,7 @@ class SignalPredictionPipeline(Pipeline):
         'window_size_future': 40
     })
 
-    def __init__(self):
+    def __init__(self, window_size_future, input_dim, output_dim):
         super().__init__([
             ForEachDataInput(MeanStdNormalizer()),
             ToNumpy(),
@@ -106,7 +107,11 @@ class SignalPredictionPipeline(Pipeline):
                 expected_outputs_dtype=tf.dtypes.float32,
                 data_inputs_dtype=tf.dtypes.float32,
                 print_loss=True
-            ).set_hyperparams(self.HYPERPARAMS)
+            ).set_hyperparams(self.HYPERPARAMS).update_hyperparams(HyperparameterSamples({
+                'window_size_future': window_size_future,
+                'input_dim': input_dim,
+                'output_dim': output_dim
+            }))
         ])
 
 
@@ -125,12 +130,29 @@ def metric_2d_to_3d_wrapper(metric_fun: Callable, index_column_for_metric=0):
 # )
 
 def main():
-    batch_size = 100
+    exercice_number = 1
+
+    data_inputs, expected_outputs = generate_data(exercice_number=exercice_number)
+
+    print('exercice {}\n=================='.format(1))
+    print('data_inputs shape: {} => (batch_size, sequence_length, input_dim)'.format(data_inputs.shape))
+    print('expected_outputs shape: {} => (batch_size, sequence_length, input_dim)'.format(expected_outputs.shape))
+
+    sequence_length = data_inputs.shape[1]
+    input_dim = data_inputs.shape[2]
+    output_dim = expected_outputs.shape[2]
+
+    batch_size = 10
     epochs = 50
+    validation_size = 0.15
 
     pipeline = DeepLearningPipeline(
-        SignalPredictionPipeline(),
-        validation_size=0.15,
+        SignalPredictionPipeline(
+            window_size_future=sequence_length,
+            input_dim=input_dim,
+            output_dim=output_dim
+        ),
+        validation_size=validation_size,
         batch_size=batch_size,
         batch_metrics={'mse': metric_2d_to_3d_wrapper(mean_squared_error)},
         shuffle_in_each_epoch_at_train=True,
@@ -139,25 +161,26 @@ def main():
         scoring_function=metric_2d_to_3d_wrapper(mean_squared_error)
     )
 
-    data_inputs, expected_outputs = fetch_data(window_size_past=40, window_size_future=SignalPredictionPipeline.HYPERPARAMS['window_size_future'])
-    # data_inputs, expected_outputs = generate_x_y_data_v1(batch_size=5, sequence_length=10)
-    # data_inputs, expected_outputs = generate_x_y_data_v2(batch_size=5, sequence_length=15)
-    # data_inputs, expected_outputs = generate_x_y_data_v3(batch_size=5, sequence_length=30)
-
-    pipeline.get_step_by_name("Tensorflow2ModelStep").update_hyperparams({
-        'window_size_future': 40
-    })
-
     pipeline, outputs = pipeline.fit_transform(data_inputs, expected_outputs)
+    # plot_metrics(pipeline=pipeline, exercice_number=exercice_number)
 
-    mse_train = pipeline.get_epoch_metric_train('mse')
-    mse_validation = pipeline.get_epoch_metric_validation('mse')
+    validation_index = math.floor(len(data_inputs) * (1 - validation_size))
+    data_inputs_validation = data_inputs[validation_index:]
+    expected_outputs_validation = data_inputs[validation_index:]
 
-    plot_metric(mse_train, mse_validation, xlabel='epoch', ylabel='mse', title='Model Mean Squared Error')
+    new_di = []
+    new_eo = []
+    for di, eo in zip(data_inputs_validation, expected_outputs_validation):
+        di, eo = MeanStdNormalizer().transform((di, eo))
+        new_di.append(di)
+        new_eo.append(eo)
 
-    loss_train = pipeline.get_step_by_name('Tensorflow2ModelStep').train_losses
-    loss_test = pipeline.get_step_by_name('Tensorflow2ModelStep').test_losses
-    plot_metric(loss_train, loss_test, xlabel='batch', ylabel='l2_loss', title='Model L2 Loss')
+    data_inputs_validation = new_di
+    expected_outputs_validation = new_eo
+    predicted_outputs_validation = outputs[validation_index:]
+
+    for i in range(10):
+        plot_predictions(data_inputs_validation[i], expected_outputs_validation[i], predicted_outputs_validation[i], exercice_number)
 
 
 if __name__ == '__main__':

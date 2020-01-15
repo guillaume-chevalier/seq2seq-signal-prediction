@@ -3,24 +3,33 @@ import random
 
 import numpy as np
 import requests
-import matplotlib.pyplot as plt
 
 from steps import WindowTimeSeries
 
 
-def fetch_data(window_size_past, window_size_future):
-    data_inputs_usd = load_currency("USD")
-    data_inputs_eur = load_currency("EUR")
+def generate_data(
+        exercice_number,
+        window_size_past=None,
+        window_size_future=None,
+        batch_size=None
+):
+    if exercice_number == 1:
+        return generate_data_v1(batch_size, window_size_past)
 
-    data_inputs_usd = np.expand_dims(np.array(data_inputs_usd), axis=1)
-    data_inputs_eur = np.expand_dims(np.array(data_inputs_eur), axis=1)
-    data_inputs = np.concatenate((data_inputs_usd, data_inputs_eur), axis=1)
+    if exercice_number == 2:
+        return generate_data_v2(batch_size, window_size_past)
 
-    return WindowTimeSeries(window_size_past=window_size_past, window_size_future=window_size_future).transform(
-        (data_inputs, None))
+    if exercice_number == 3:
+        return generate_data_v3(batch_size, window_size_past)
+
+    if exercice_number == 4:
+        return WindowTimeSeries(
+            window_size_past=window_size_past,
+            window_size_future=window_size_future
+        ).transform((generate_data_v4(batch_size, window_size_future, window_size_past), None))
 
 
-def generate_x_y_data_v1(batch_size, sequence_length=10):
+def generate_data_v1(batch_size, sequence_length):
     """
     Data for exercise 1.
 
@@ -37,8 +46,13 @@ def generate_x_y_data_v1(batch_size, sequence_length=10):
     For this exercise, let's ignore the "isTrain"
     argument and test on the same data.
     """
+    if batch_size is None:
+        batch_size = 100
+    if sequence_length is None:
+        sequence_length = 10
 
-    batches = []
+    batch_x = []
+    batch_y = []
     for _ in range(batch_size):
         rand = random.random() * 2 * math.pi
 
@@ -46,44 +60,67 @@ def generate_x_y_data_v1(batch_size, sequence_length=10):
                                   3.0 * math.pi + rand, sequence_length * 2))
         sig2 = np.cos(np.linspace(0.0 * math.pi + rand,
                                   3.0 * math.pi + rand, sequence_length * 2))
-        data_inputs = np.array([sig1, sig2])
-        data_inputs = data_inputs.T
+        x1 = sig1[:sequence_length]
+        y1 = sig1[sequence_length:]
+        x2 = sig2[:sequence_length]
+        y2 = sig2[sequence_length:]
 
-        batches.append(data_inputs)
+        x_ = np.array([x1, x2])
+        y_ = np.array([y1, y2])
+        x_, y_ = x_.T, y_.T
 
-    batches = np.array(batches)
+        batch_x.append(x_)
+        batch_y.append(y_)
+
+    batch_x = np.array(batch_x)
+    batch_y = np.array(batch_y)
     # shape: (batch_size, seq_length, output_dim)
 
-    batches = np.array(batches).transpose((1, 0, 2))
-    # shape: (seq_length, batch_size, output_dim)
-
-    return batches
+    return batch_x, batch_y
 
 
-def generate_x_y_data_v2(batch_size, sequence_length=15):
+def generate_data_v2(batch_size, sequence_length):
     """
     Similar the the "v1" function, but here we generate a signal with
     2 frequencies chosen randomly - and this for the 2 signals. Plus,
     the lenght of the examples is of 15 rather than 10.
     So we have 30 total values for past and future.
     """
-    return generate_x_y_data_two_freqs(batch_size, seq_length=sequence_length)
+    if batch_size is None:
+        batch_size = 300
+    if sequence_length is None:
+        sequence_length = 15
+
+    return generate_data_two_freqs(batch_size, seq_length=sequence_length)
 
 
-def generate_x_y_data_v3(batch_size, sequence_length=30):
+def generate_data_v3(batch_size, sequence_length):
     """
     Similar to the "v2" function, but here we generate a signal
     with noise in the X values.
     """
-    data_inputs = generate_x_y_data_two_freqs(batch_size, seq_length=sequence_length)
+    if batch_size is None:
+        batch_size = 600
+    if sequence_length is None:
+        sequence_length = 30
+
+    x, y = generate_data_two_freqs(batch_size, seq_length=sequence_length)
     noise_amount = random.random() * 0.15 + 0.10
-    data_inputs = data_inputs + noise_amount * np.random.randn(sequence_length, batch_size, 1)
+    x = x + noise_amount * np.random.randn(batch_size, sequence_length, 1)
 
-    return data_inputs
+    avg = np.average(x)
+    std = np.std(x) + 0.0001
+    x = x - avg
+    y = y - avg
+    x = x / std / 2.5
+    y = y / std / 2.5
+
+    return x, y
 
 
-def generate_x_y_data_two_freqs(batch_size, seq_length):
-    batches = []
+def generate_data_two_freqs(batch_size, seq_length):
+    batch_x = []
+    batch_y = []
     for _ in range(batch_size):
         offset_rand = random.random() * 2 * math.pi
         freq_rand = (random.random() - 0.5) / 1.5 * 15 + 0.5
@@ -93,7 +130,8 @@ def generate_x_y_data_two_freqs(batch_size, seq_length):
             seq_length / 15.0 * freq_rand * 0.0 * math.pi + offset_rand,
             seq_length / 15.0 * freq_rand * 3.0 * math.pi + offset_rand,
             seq_length * 2
-        ))
+        )
+        )
 
         offset_rand = random.random() * 2 * math.pi
         freq_rand = (random.random() - 0.5) / 1.5 * 15 + 0.5
@@ -103,21 +141,24 @@ def generate_x_y_data_two_freqs(batch_size, seq_length):
             seq_length / 15.0 * freq_rand * 0.0 * math.pi + offset_rand,
             seq_length / 15.0 * freq_rand * 3.0 * math.pi + offset_rand,
             seq_length * 2
-        )) + sig1
+        )
+        ) + sig1
 
-        x1 = sig1
+        x1 = sig1[:seq_length]
+        y1 = sig1[seq_length:]
 
         x_ = np.array([x1])
-        x_ = x_.T
+        y_ = np.array([y1])
+        x_, y_ = x_.T, y_.T
 
-        batches.append(x_)
+        batch_x.append(x_)
+        batch_y.append(y_)
 
+    batch_x = np.array(batch_x)
+    batch_y = np.array(batch_y)
     # shape: (batch_size, seq_length, output_dim)
 
-    batches = np.array(batches).transpose((1, 0, 2))
-    # shape: (seq_length, batch_size, output_dim)
-
-    return batches
+    return batch_x, batch_y
 
 
 def load_currency(currency):
@@ -129,8 +170,7 @@ def load_currency(currency):
     # https://github.com/Levino/coindesk-api-node
     r = requests.get(
         "http://api.coindesk.com/v1/bpi/historical/close.json?start=2010-07-17&end=2017-12-01&currency={}".format(
-            currency
-        )
+            currency)
     )
     data = r.json()
     time_to_values = sorted(data["bpi"].items())
@@ -138,3 +178,37 @@ def load_currency(currency):
     kept_values = values[1000:]
 
     return kept_values
+
+
+def generate_data_v4(batch_size, window_size_future, window_size_past):
+    if window_size_past is None:
+        window_size_past = 40
+    if window_size_future is None:
+        window_size_future = 40
+
+    data_inputs_usd = load_currency("USD")
+    data_inputs_eur = load_currency("EUR")
+
+    data_inputs_usd = np.expand_dims(np.array(data_inputs_usd), axis=1)
+    data_inputs_eur = np.expand_dims(np.array(data_inputs_eur), axis=1)
+
+    data_inputs = np.concatenate((data_inputs_usd, data_inputs_eur), axis=1)
+    data_inputs = data_inputs[:batch_size]
+
+    return window_time_series(
+        data_inputs=data_inputs,
+        window_size_past=window_size_past,
+        window_size_future=window_size_future
+    )
+
+
+def window_time_series(data_inputs, window_size_past, window_size_future):
+    new_data_inputs = []
+    new_expected_outputs = []
+
+    for i in range(len(data_inputs) - window_size_past - window_size_future):
+        new_data_inputs.append(data_inputs[i: i + window_size_past])
+        new_expected_outputs.append(
+            data_inputs[i + window_size_past: i + window_size_past + window_size_future])
+
+    return np.array(new_data_inputs), np.array(new_expected_outputs)
