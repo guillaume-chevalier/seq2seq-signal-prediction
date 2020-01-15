@@ -149,7 +149,7 @@ def loadCurrency(curr, window_size):
     # For more info on the URL call, it is inspired by :
     # https://github.com/Levino/coindesk-api-node
     r = requests.get(
-        "http://api.coindesk.com/v1/bpi/historical/close.json?start=2010-07-17&end=2017-03-03&currency={}".format(
+        "http://api.coindesk.com/v1/bpi/historical/close.json?start=2010-07-17&end=2020-01-01&currency={}".format(
             curr
         )
     )

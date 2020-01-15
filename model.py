@@ -15,13 +15,16 @@ from tensorflow_core.python.training.rmsprop import RMSPropOptimizer
 from data_loading import generate_data
 from neuraxle_tensorflow.tensorflow_v1 import TensorflowV1ModelStep
 from neuraxle_tensorflow.tensorflow_v2 import Tensorflow2ModelStep
-from plotting import plot_predictions
+from plotting import plot_predictions, plot_metrics
 from steps import MeanStdNormalizer, ToNumpy
 
 
 def create_model(step: Tensorflow2ModelStep):
     # shape: (batch_size, seq_length, input_dim)
     encoder_inputs = Input(shape=(None, step.hyperparams['input_dim']), dtype=tf.dtypes.float32)
+    # TODO: why is this 2D here whereas the comment above is 3D? I'd have expected a 3D Input placeholder.
+    #       This needs an explanation or at least I need to know to explain it.
+    # TODO: this might be a bug
 
     # shape: (batch_size, seq_length, output_dim)
     decoder_inputs = Input(shape=(None, step.hyperparams['output_dim']), dtype=tf.dtypes.float32)
@@ -115,19 +118,25 @@ class SignalPredictionPipeline(Pipeline):
         ])
 
 
-def metric_2d_to_3d_wrapper(metric_fun: Callable, index_column_for_metric=0):
+seq2seq_pipeline_hyperparams = HyperparameterSamples({
+    'hidden_dim': 32,
+    'layers_stacked_count': 2,
+    'lambda_loss_amount': 0.003,
+    'learning_rate': 0.006,
+    'lr_decay': 0.92,
+    'momentum': 0.5,
+    'window_size_future': 40,
+    'output_dim': 2,
+    'input_dim': 2
+})
+
+
+def metric_2d_to_3d_wrapper(metric_fun: Callable):
     def metric(data_inputs, expected_outputs):
         return metric_fun(np.array(data_inputs)[..., 0], np.array(expected_outputs)[..., 0])
 
     return metric
 
-
-# EpochRepeater(
-#   ValidationSplitWrapper([
-#       TrainOnlyWrapper(Shuffled()),
-#       MiniBatchSequentialPipeline([pipeline!]
-#   ])
-# )
 
 def main():
     exercice_number = 1
@@ -146,28 +155,52 @@ def main():
     epochs = 50
     validation_size = 0.15
 
+    metrics = {'mse': metric_2d_to_3d_wrapper(mean_squared_error)}
+
     pipeline = DeepLearningPipeline(
-        SignalPredictionPipeline(
-            window_size_future=sequence_length,
-            input_dim=input_dim,
-            output_dim=output_dim
-        ),
-        validation_size=validation_size,
+        # TODO: use this rather than the DeepLearningPipeline for now, and add a slide for this to compare the
+        #       DL Wrapper to full expanded pipeline definition as follow:
+        # EpochRepeater(
+        #   ValidationSplitWrapper([
+        #       TrainOnlyWrapper(Shuffled()),
+        #       MiniBatchSequentialPipeline([pipeline!]
+        #   ])
+        # )
+        Pipeline([
+            ForEachDataInput(MeanStdNormalizer()),
+            ToNumpy(),
+            Tensorflow2ModelStep(
+                create_model=create_model,
+                create_loss=create_loss,
+                create_optimizer=create_optimizer,
+                expected_outputs_dtype=tf.dtypes.float32,
+                data_inputs_dtype=tf.dtypes.float32,
+                print_loss=True
+            ).set_hyperparams(seq2seq_pipeline_hyperparams).update_hyperparams(HyperparameterSamples({
+                'window_size_future': sequence_length,
+                'input_dim': input_dim,
+                'output_dim': output_dim
+            }))
+        ]),
+        validation_size=0.15,
         batch_size=batch_size,
-        batch_metrics={'mse': metric_2d_to_3d_wrapper(mean_squared_error)},
+        batch_metrics=metrics,
         shuffle_in_each_epoch_at_train=True,
         n_epochs=epochs,
-        epochs_metrics={'mse': metric_2d_to_3d_wrapper(mean_squared_error)},
+        epochs_metrics=metrics,
         scoring_function=metric_2d_to_3d_wrapper(mean_squared_error)
     )
 
     pipeline, outputs = pipeline.fit_transform(data_inputs, expected_outputs)
-    # plot_metrics(pipeline=pipeline, exercice_number=exercice_number)
+    plot_metrics(pipeline=pipeline, exercice_number=exercice_number)
 
+    # TODO: clean this ? apply method on Validation Split ??
     validation_index = math.floor(len(data_inputs) * (1 - validation_size))
     data_inputs_validation = data_inputs[validation_index:]
     expected_outputs_validation = data_inputs[validation_index:]
+    predicted_outputs_validation = outputs[validation_index:]
 
+    # TODO: clean this ? apply method on Normalizer steps ??
     new_di = []
     new_eo = []
     for di, eo in zip(data_inputs_validation, expected_outputs_validation):
@@ -177,11 +210,17 @@ def main():
 
     data_inputs_validation = new_di
     expected_outputs_validation = new_eo
-    predicted_outputs_validation = outputs[validation_index:]
 
     for i in range(10):
-        plot_predictions(data_inputs_validation[i], expected_outputs_validation[i], predicted_outputs_validation[i], exercice_number)
+        plot_predictions(data_inputs_validation[i], expected_outputs_validation[i], predicted_outputs_validation[i],
+                         exercice_number)
 
 
 if __name__ == '__main__':
+    tf.debugging.set_log_device_placement(True)
+    # TODO: try GPU
+    # with tf.device('/device:GPU:0'):
     main()
+    # TODO: prediction charts, too. Use the chart methods of the original repo. And fix english comments that were french in the chart maybe.
+
+    # TODO: how to import external code files: https://stackoverflow.com/questions/48905127/importing-py-files-in-google-colab
