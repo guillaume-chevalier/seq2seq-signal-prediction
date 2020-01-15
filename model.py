@@ -171,3 +171,6 @@ if __name__ == '__main__':
     # TODO: try GPU
     # with tf.device('/device:GPU:0'):
     main()
+    # TODO: prediction charts, too. Use the chart methods of the original repo.
+
+    # TODO: how to import external code files: https://stackoverflow.com/questions/48905127/importing-py-files-in-google-colab
