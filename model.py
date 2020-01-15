@@ -212,8 +212,12 @@ def main():
     expected_outputs_validation = new_eo
 
     for i in range(10):
-        plot_predictions(data_inputs_validation[i], expected_outputs_validation[i], predicted_outputs_validation[i],
-                         exercice_number)
+        plot_predictions(
+            data_inputs=data_inputs_validation[i],
+            expected_outputs=expected_outputs_validation[i],
+            predicted_outputs=predicted_outputs_validation[i],
+            exercice_number=exercice_number
+        )
 
 
 if __name__ == '__main__':
