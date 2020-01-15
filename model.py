@@ -154,7 +154,7 @@ def main():
     output_dim = expected_outputs.shape[2]
 
     batch_size = 10
-    epochs = 16
+    epochs = 5
     validation_size = 0.15
 
     metrics = {'mse': metric_2d_to_3d_wrapper(mean_squared_error)}
@@ -200,12 +200,11 @@ def main():
     expected_outputs_validation = expected_outputs[validation_index:]
 
     pipeline.set_train(is_train=False)
-    predicted_outputs_validation_data_container = pipeline.handle_transform(
+    pipeline.mutate('transform', 'transform')
+    predicted_outputs_validation_data_container = pipeline.transform(
         DataContainer(current_ids=None, data_inputs=data_inputs_validation, expected_outputs=expected_outputs_validation),
         ExecutionContext(DEFAULT_CACHE_FOLDER)
     )
-
-    data_inputs_validation = np.array([MeanStdNormalizer().transform(di) for di in data_inputs_validation])
 
     for i in range(10):
         plot_predictions(
