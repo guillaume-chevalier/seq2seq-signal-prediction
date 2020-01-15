@@ -4,11 +4,12 @@ from typing import Callable
 import numpy as np
 import tensorflow as tf
 from neuraxle.api import DeepLearningPipeline
-from neuraxle.base import ExecutionContext, DEFAULT_CACHE_FOLDER
+from neuraxle.base import ExecutionContext, DEFAULT_CACHE_FOLDER, Identity, BaseStep, NonFittableMixin
 from neuraxle.data_container import DataContainer
 from neuraxle.hyperparams.space import HyperparameterSamples
 from neuraxle.pipeline import Pipeline
 from neuraxle.steps.loop import ForEachDataInput
+from neuraxle.union import FeatureUnion
 from sklearn.metrics import mean_squared_error
 from tensorflow_core.python.keras import Input, Model
 from tensorflow_core.python.keras.layers import GRUCell, RNN, Dense
@@ -17,7 +18,7 @@ from tensorflow_core.python.training.rmsprop import RMSPropOptimizer
 from data_loading import generate_data
 from neuraxle_tensorflow.tensorflow_v1 import TensorflowV1ModelStep
 from neuraxle_tensorflow.tensorflow_v2 import Tensorflow2ModelStep
-from plotting import plot_predictions, plot_metrics
+from plotting import plot_predictions
 from steps import MeanStdNormalizer, ToNumpy
 
 
@@ -140,6 +141,33 @@ def metric_2d_to_3d_wrapper(metric_fun: Callable):
     return metric
 
 
+class PlotPredictionsJoiner(NonFittableMixin, BaseStep):
+    def __init__(self, plotting_function: Callable, enabled=False):
+        NonFittableMixin.__init__(self)
+        BaseStep.__init__(self)
+        self.enabled = enabled
+        self.plotting_function = plotting_function
+
+    def toggle_plotting(self):
+        self.enabled = not self.enabled
+
+    def transform(self, data_inputs):
+        raise NotImplementedError('must be used inside a pipeline')
+
+    def _transform_data_container(self, data_container: DataContainer, context: ExecutionContext) -> DataContainer:
+        past = data_container.data_inputs[0].data_inputs
+        predicted = data_container.data_inputs[1].data_inputs
+        expected = data_container.expected_outputs
+
+        if self.enabled:
+            for past_sequence, expected_sequence, predicted_sequence in zip(past, expected, predicted):
+                self.plotting_function(past_sequence, expected_sequence, predicted_sequence)
+
+        data_container.set_data_inputs(predicted)
+
+        return data_container
+
+
 def main():
     exercice_number = 1
 
@@ -171,19 +199,22 @@ def main():
         Pipeline([
             ForEachDataInput(MeanStdNormalizer()),
             ToNumpy(),
-            Tensorflow2ModelStep(
-                create_model=create_model,
-                create_loss=create_loss,
-                create_optimizer=create_optimizer,
-                expected_outputs_dtype=tf.dtypes.float32,
-                data_inputs_dtype=tf.dtypes.float32,
-                print_loss=True
-            ).set_hyperparams(seq2seq_pipeline_hyperparams).update_hyperparams(HyperparameterSamples({
-                'window_size_future': sequence_length,
-                'input_dim': input_dim,
-                'output_dim': output_dim
-            }))
-        ]),
+            FeatureUnion([
+                Identity(),
+                Tensorflow2ModelStep(
+                    create_model=create_model,
+                    create_loss=create_loss,
+                    create_optimizer=create_optimizer,
+                    expected_outputs_dtype=tf.dtypes.float32,
+                    data_inputs_dtype=tf.dtypes.float32,
+                    print_loss=True
+                ).set_hyperparams(seq2seq_pipeline_hyperparams).update_hyperparams(HyperparameterSamples({
+                    'window_size_future': sequence_length,
+                    'input_dim': input_dim,
+                    'output_dim': output_dim
+                }))
+            ], joiner=PlotPredictionsJoiner(plotting_function=plot_predictions), n_jobs=1)
+        ]).set_name('SignalPrediction'),
         validation_size=0.15,
         batch_size=batch_size,
         batch_metrics=metrics,
@@ -195,26 +226,20 @@ def main():
 
     pipeline, outputs = pipeline.fit_transform(data_inputs, expected_outputs)
 
+    # plot_metrics(pipeline=pipeline, exercice_number=exercice_number)
+
     validation_index = math.floor(len(data_inputs) * (1 - validation_size))
     data_inputs_validation = data_inputs[validation_index:]
     expected_outputs_validation = expected_outputs[validation_index:]
 
-    pipeline.set_train(is_train=False)
-    pipeline.mutate('transform', 'transform')
-    predicted_outputs_validation_data_container = pipeline.transform(
-        DataContainer(current_ids=None, data_inputs=data_inputs_validation, expected_outputs=expected_outputs_validation),
+    signal_prediction_pipeline = pipeline.get_step_by_name('SignalPrediction')
+    signal_prediction_pipeline.apply('toggle_plotting')
+
+    signal_prediction_pipeline.handle_transform(
+        DataContainer(current_ids=[str(i) for i in range(len(data_inputs_validation))], data_inputs=data_inputs_validation,
+                      expected_outputs=expected_outputs_validation),
         ExecutionContext(DEFAULT_CACHE_FOLDER)
     )
-
-    for i in range(10):
-        plot_predictions(
-            data_inputs=data_inputs_validation[i],
-            expected_outputs=predicted_outputs_validation_data_container.expected_outputs[i],
-            predicted_outputs=predicted_outputs_validation_data_container.data_inputs[i],
-            exercice_number=exercice_number
-        )
-
-    plot_metrics(pipeline=pipeline, exercice_number=exercice_number)
 
 
 if __name__ == '__main__':

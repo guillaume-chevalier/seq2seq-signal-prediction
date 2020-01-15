@@ -2,7 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 
-def plot_predictions(data_inputs, expected_outputs, predicted_outputs, exercice_number, save=False):
+def plot_predictions(data_inputs, expected_outputs, predicted_outputs, save=False):
     plt.figure(figsize=(12, 3))
 
     for output_dim_index in range(predicted_outputs.shape[-1]):
@@ -19,7 +19,7 @@ def plot_predictions(data_inputs, expected_outputs, predicted_outputs, exercice_
         plt.plot(range(past.shape[0], pred.shape[0] + past.shape[0]), pred, "o--y", label=label3)
 
     plt.legend(loc='best')
-    title = "Exercice {} Predictions v.s. true values".format(exercice_number)
+    title = "Exercice Predictions v.s. true values"
     plt.title(title)
 
     if save:
@@ -45,7 +45,7 @@ def plot_metric(metric_train, metric_validation=None, xlabel='x', ylabel='y', ti
     plt.plot(range(len(metric_train)), metric_train)
 
     if len(metric_validation) <= len(metric_train):
-        domain_val = list(np.linspace(0, len(metric_train)-1, num=len(metric_validation)))
+        domain_val = list(np.linspace(0, len(metric_train) - 1, num=len(metric_validation)))
     else:
         domain_val = list(range(len(metric_validation)))
 
