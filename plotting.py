@@ -30,7 +30,12 @@ def plot_predictions(data_inputs, expected_outputs, predicted_outputs, save=Fals
 
 def plot_metrics(pipeline, exercice_number):
     mse_train = pipeline.get_step_by_name('epoch_metrics').get_metric_train('mse')
+    print('last mse train: {}'.format(mse_train[-1]))
+    print('best mse train: {}'.format(min(mse_train)))
+
     mse_validation = pipeline.get_step_by_name('epoch_metrics').get_metric_validation('mse')
+    print('last mse validation: {}'.format(mse_validation[-1]))
+    print('best mse validation: {}'.format(min(mse_validation)))
 
     plot_metric(mse_train, mse_validation, xlabel='epoch', ylabel='mse',
                 title='Exercice {} Model Mean Squared Error'.format(exercice_number))
