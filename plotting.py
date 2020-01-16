@@ -37,13 +37,13 @@ def plot_metrics(pipeline, exercice_number):
     print('last mse validation: {}'.format(mse_validation[-1]))
     print('best mse validation: {}'.format(min(mse_validation)))
 
-    plot_metric(mse_train, mse_validation, xlabel='epoch', ylabel='mse',
-                title='Exercice {} Model Mean Squared Error'.format(exercice_number))
-    loss_train = pipeline.get_step_by_name('Tensorflow2ModelStep').train_losses
-    loss_test = pipeline.get_step_by_name('Tensorflow2ModelStep').test_losses
-
-    plot_metric(loss_train, loss_test, xlabel='batch', ylabel='l2_loss',
-                title='Exercice {} Model L2 Loss'.format(exercice_number))
+    plot_metric(
+        mse_train,
+        mse_validation,
+        xlabel='epoch',
+        ylabel='mse',
+        title='Exercice {} Model Mean Squared Error'.format(exercice_number)
+    )
 
 
 def plot_metric(metric_train, metric_validation=None, xlabel='x', ylabel='y', title='Metric', save=False):
