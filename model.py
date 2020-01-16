@@ -25,13 +25,13 @@ from steps import MeanStdNormalizer, ToNumpy, PlotPredictionsWrapper
 
 def create_model(step: Tensorflow2ModelStep):
     # shape: (batch_size, seq_length, input_dim)
-    encoder_inputs = Input(shape=(None, step.hyperparams['input_dim']), dtype=tf.dtypes.float32)
+    encoder_inputs = Input(shape=(None, step.hyperparams['input_dim']), dtype=tf.dtypes.float32, name='encoder_inputs')
     # TODO: why is this 2D here whereas the comment above is 3D? I'd have expected a 3D Input placeholder.
     #       This needs an explanation or at least I need to know to explain it.
     # TODO: this might be a bug
 
     # shape: (batch_size, seq_length, output_dim)
-    decoder_inputs = Input(shape=(None, step.hyperparams['output_dim']), dtype=tf.dtypes.float32)
+    decoder_inputs = Input(shape=(step.hyperparams['window_size_future'], step.hyperparams['output_dim']), dtype=tf.dtypes.float32, name='decoder_inputs')
 
     last_encoder_outputs, last_encoders_states = create_encoder(step, encoder_inputs)
     decoder_outputs = create_decoder(step, last_encoder_outputs, last_encoders_states)
@@ -92,7 +92,7 @@ def create_optimizer(step: TensorflowV1ModelStep):
 
 seq2seq_pipeline_hyperparams = HyperparameterSamples({
     'hidden_dim': 32,
-    'layers_stacked_count': 2,
+    'layers_stacked_count': 15,
     'lambda_loss_amount': 0.003,
     'learning_rate': 0.006,
     'lr_decay': 0.92,
@@ -116,7 +116,7 @@ def main():
     data_inputs, expected_outputs = generate_data(exercice_number=exercice_number)
 
     print('exercice {}\n=================='.format(1))
-    tf.debugging.set_log_device_placement(True)
+    # tf.debugging.set_log_device_placement(True)
     print('You can use the following devices: {}'.format(get_avaible_devices()))
 
     print('data_inputs shape: {} => (batch_size, sequence_length, input_dim)'.format(data_inputs.shape))
@@ -126,8 +126,8 @@ def main():
     input_dim = data_inputs.shape[2]
     output_dim = expected_outputs.shape[2]
 
-    batch_size = 10
-    epochs = 50
+    batch_size = 50
+    epochs = 75
     validation_size = 0.15
 
     metrics = {'mse': metric_2d_to_3d_wrapper(mean_squared_error)}
@@ -141,8 +141,7 @@ def main():
             create_optimizer=create_optimizer,
             expected_outputs_dtype=tf.dtypes.float32,
             data_inputs_dtype=tf.dtypes.float32,
-            print_loss=True,
-            # device_name='/device:XLA_GPU:0'
+            print_loss=True
         ).set_hyperparams(seq2seq_pipeline_hyperparams).update_hyperparams(HyperparameterSamples({
             'window_size_future': sequence_length,
             'input_dim': input_dim,
@@ -152,17 +151,16 @@ def main():
 
     pipeline = Pipeline([EpochRepeater(
         ValidationSplitWrapper(
-            MetricsWrapper(
-                Pipeline([
-                    TrainOnlyWrapper(DataShuffler()),
-                    MiniBatchSequentialPipeline([
-                        MetricsWrapper(
-                            signal_prediction_pipeline,
-                            metrics=metrics,
-                            name='batch_metrics'
-                        )
-                    ], batch_size=batch_size)
-                ]), metrics=metrics, name='epoch_metrics'),
+            MetricsWrapper(Pipeline([
+                TrainOnlyWrapper(DataShuffler()),
+                MiniBatchSequentialPipeline([
+                    MetricsWrapper(
+                        signal_prediction_pipeline,
+                        metrics=metrics,
+                        name='batch_metrics'
+                    )
+                ], batch_size=batch_size)
+            ]), metrics=metrics, name='epoch_metrics'),
             test_size=validation_size,
             scoring_function=metric_2d_to_3d_wrapper(mean_squared_error),
         ), epochs=epochs, fit_only=False)])
