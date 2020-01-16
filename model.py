@@ -14,7 +14,6 @@ from sklearn.metrics import mean_squared_error
 from tensorflow_core.python.client import device_lib
 from tensorflow_core.python.keras import Input, Model
 from tensorflow_core.python.keras.layers import GRUCell, RNN, Dense
-from tensorflow_core.python.training.rmsprop import RMSPropOptimizer
 from tensorflow_core.python.training.adam import AdamOptimizer
 
 from data_loading import generate_data
@@ -25,6 +24,15 @@ from steps import MeanStdNormalizer, ToNumpy, PlotPredictionsWrapper
 
 
 def create_model(step: Tensorflow2ModelStep):
+    """
+    Create tensorflow 2 encoder decoder sequence to sequence model.
+
+    :param step: tensorflow 2 model step
+    :type step: Tensorflow2ModelStep
+
+    :return: tensorflow 2 keras model
+    :rtype: tf.keras.Model
+    """
     # shape: (batch_size, seq_length, input_dim)
     encoder_inputs = Input(
         shape=(None, step.hyperparams['input_dim']),
@@ -40,14 +48,43 @@ def create_model(step: Tensorflow2ModelStep):
 
 
 def create_encoder(step: Tensorflow2ModelStep, encoder_inputs):
-    encoder = RNN(cell=create_stacked_rnn_cells(step), return_sequences=False, return_state=True)
-    last_encoder_outputs_and_states = encoder(encoder_inputs)
+    """
+    Create encoder RNN.
 
+    :param step: tensorflow 2 model step
+    :type step: Tensorflow2ModelStep
+    :param encoder_inputs: encoder inputs layer of shape (batch_size, seq_length, input_dim)
+    :return: (last encoder outputs, last stacked encoders states)
+                last_encoder_outputs shape: (batch_size, hidden_dim)
+                last_encoder_states shape: (layers_stacked_count, batch_size, hidden_dim)
+    :rtype: Tuple[tf.Tensor, [tf.Tensor]]
+    """
+    encoder = RNN(cell=create_stacked_rnn_cells(step), return_sequences=False, return_state=True)
+    # encoder rnn shape: (layers_stacked_count, hidden_dim)
+
+    last_encoder_outputs_and_states = encoder(encoder_inputs)
+    # last_encoder_outputs shape: (batch_size, hidden_dim)
+    # last_encoder_states shape: (layers_stacked_count, batch_size, hidden_dim)
+
+    # refer to: https://www.tensorflow.org/api_docs/python/tf/keras/layers/RNN?version=stable#output_shape_2
     last_encoder_outputs, *last_encoders_states = last_encoder_outputs_and_states
     return last_encoder_outputs, last_encoders_states
 
 
 def create_decoder(step: Tensorflow2ModelStep, last_encoder_outputs, last_encoders_states):
+    """
+    Create decoder RNN.
+
+    :param step: tensorflow 2 model step
+    :type step: Tensorflow2ModelStep
+    :param last_encoders_states: last encoder states tensor
+    :type last_encoders_states: tf.Tensor
+    :param last_encoder_outputs: last encoder output tensor
+    :type last_encoder_outputs: tf.Tensor
+
+    :return: decoder output
+    :rtype: tf.Tensor
+    """
     decoder_lstm = RNN(cell=create_stacked_rnn_cells(step), return_sequences=True, return_state=False)
     # stacked rnn shape: (layers_stacked_count, hidden_dim)
 
@@ -62,6 +99,8 @@ def create_decoder(step: Tensorflow2ModelStep, last_encoder_outputs, last_encode
     # replicated last encoder output shape: (batch_size, window_size_future, hidden_dim)
 
     decoder_outputs = decoder_lstm(replicated_last_encoder_output, initial_state=last_encoders_states)
+    # decoder outputs shape: (batch_size, window_size_future, hidden_dim)
+
     decoder_dense = Dense(step.hyperparams['output_dim'])
 
     return decoder_dense(decoder_outputs)
