@@ -39,7 +39,7 @@ def create_model(step: Tensorflow2ModelStep):
 
 
 def create_encoder(step: Tensorflow2ModelStep, encoder_inputs):
-    encoder = RNN(create_stacked_rnn_cells(step), return_sequences=False, return_state=True)
+    encoder = RNN(cell=create_stacked_rnn_cells(step), return_sequences=False, return_state=True)
     last_encoder_outputs_and_states = encoder(encoder_inputs)
 
     last_encoder_outputs, *last_encoders_states = last_encoder_outputs_and_states
@@ -47,11 +47,14 @@ def create_encoder(step: Tensorflow2ModelStep, encoder_inputs):
 
 
 def create_decoder(step: Tensorflow2ModelStep, last_encoder_outputs, last_encoders_states):
-    decoder_lstm = RNN(create_stacked_rnn_cells(step), return_sequences=True, return_state=False)
+    decoder_lstm = RNN(cell=create_stacked_rnn_cells(step), return_sequences=True, return_state=False)
 
     last_encoder_output = tf.expand_dims(last_encoder_outputs, axis=1)
-    replicated_last_encoder_output = tf.repeat(input=last_encoder_output,
-                                               repeats=step.hyperparams['window_size_future'], axis=1)
+    replicated_last_encoder_output = tf.repeat(
+        input=last_encoder_output,
+        repeats=step.hyperparams['window_size_future'],
+        axis=1
+    )
     decoder_outputs = decoder_lstm(replicated_last_encoder_output, initial_state=last_encoders_states)
     decoder_dense = Dense(step.hyperparams['output_dim'])
 
@@ -125,7 +128,7 @@ def main():
     output_dim = expected_outputs.shape[2]
 
     batch_size = 50
-    epochs = 100
+    epochs = 10
     validation_size = 0.15
     max_plotted_predictions = 10
 
