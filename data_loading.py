@@ -9,22 +9,22 @@ def generate_data(
         exercice_number,
         window_size_past=None,
         window_size_future=None,
-        batch_size=None
+        n_samples=None
 ):
     if exercice_number == 1:
-        return generate_data_v1(batch_size, window_size_past)
+        return generate_data_v1(n_samples, window_size_past)
 
     if exercice_number == 2:
-        return generate_data_v2(batch_size, window_size_past)
+        return generate_data_v2(n_samples, window_size_past)
 
     if exercice_number == 3:
-        return generate_data_v3(batch_size, window_size_past)
+        return generate_data_v3(n_samples, window_size_past)
 
     if exercice_number == 4:
-        return generate_data_v4(batch_size, window_size_future, window_size_past)
+        return generate_data_v4(n_samples, window_size_future, window_size_past)
 
 
-def generate_data_v1(batch_size, sequence_length):
+def generate_data_v1(n_samples, sequence_length):
     """
     Data for exercise 1.
 
@@ -41,14 +41,14 @@ def generate_data_v1(batch_size, sequence_length):
     For this exercise, let's ignore the "isTrain"
     argument and test on the same data.
     """
-    if batch_size is None:
-        batch_size = 200
+    if n_samples is None:
+        n_samples = 1000
     if sequence_length is None:
         sequence_length = 10
 
     batch_x = []
     batch_y = []
-    for _ in range(batch_size):
+    for _ in range(n_samples):
         rand = random.random() * 2 * math.pi
 
         sig1 = np.sin(np.linspace(0.0 * math.pi + rand,
@@ -74,34 +74,34 @@ def generate_data_v1(batch_size, sequence_length):
     return batch_x, batch_y
 
 
-def generate_data_v2(batch_size, sequence_length):
+def generate_data_v2(n_samples, sequence_length):
     """
     Similar the the "v1" function, but here we generate a signal with
     2 frequencies chosen randomly - and this for the 2 signals. Plus,
     the lenght of the examples is of 15 rather than 10.
     So we have 30 total values for past and future.
     """
-    if batch_size is None:
-        batch_size = 10000
+    if n_samples is None:
+        n_samples = 10000
     if sequence_length is None:
         sequence_length = 15
 
-    return generate_data_two_freqs(batch_size, seq_length=sequence_length)
+    return generate_data_two_freqs(n_samples, seq_length=sequence_length)
 
 
-def generate_data_v3(batch_size, sequence_length):
+def generate_data_v3(n_samples, sequence_length):
     """
     Similar to the "v2" function, but here we generate a signal
     with noise in the X values.
     """
-    if batch_size is None:
-        batch_size = 10000
+    if n_samples is None:
+        n_samples = 10000
     if sequence_length is None:
         sequence_length = 30
 
-    x, y = generate_data_two_freqs(batch_size, seq_length=sequence_length)
+    x, y = generate_data_two_freqs(n_samples, seq_length=sequence_length)
     noise_amount = random.random() * 0.15 + 0.10
-    x = x + noise_amount * np.random.randn(batch_size, sequence_length, 1)
+    x = x + noise_amount * np.random.randn(n_samples, sequence_length, 1)
 
     avg = np.average(x)
     std = np.std(x) + 0.0001
@@ -175,9 +175,9 @@ def load_currency(currency):
     return kept_values
 
 
-def generate_data_v4(batch_size, window_size_future, window_size_past):
-    if batch_size is None:
-        batch_size = 2000
+def generate_data_v4(n_samples, window_size_future, window_size_past):
+    if n_samples is None:
+        n_samples = 2000
     if window_size_past is None:
         window_size_past = 40
     if window_size_future is None:
@@ -190,7 +190,7 @@ def generate_data_v4(batch_size, window_size_future, window_size_past):
     data_inputs_eur = np.expand_dims(np.array(data_inputs_eur), axis=1)
 
     data_inputs = np.concatenate((data_inputs_usd, data_inputs_eur), axis=1)
-    data_inputs = data_inputs[:batch_size]
+    data_inputs = data_inputs[:n_samples]
 
     return window_time_series(
         data_inputs=data_inputs,
