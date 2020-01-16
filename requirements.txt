@@ -1,2 +1,2 @@
 tensorflow==2.1.0
--e git://github.com/alexbrillant/Neuraxle.git@wip-har#egg=neuraxle
+-e git://github.com/Neuraxio/Neuraxle.git@master#egg=neuraxle
