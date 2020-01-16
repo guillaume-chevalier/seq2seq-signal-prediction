@@ -14,7 +14,6 @@ from sklearn.metrics import mean_squared_error
 from tensorflow_core.python.client import device_lib
 from tensorflow_core.python.keras import Input, Model
 from tensorflow_core.python.keras.layers import GRUCell, RNN, Dense
-from tensorflow_core.python.training.rmsprop import RMSPropOptimizer
 from tensorflow_core.python.training.adam import AdamOptimizer
 
 from data_loading import generate_data
@@ -33,22 +32,22 @@ def create_model(step: Tensorflow2ModelStep):
         name='encoder_inputs'
     )
 
-    last_encoder_outputs, last_encoders_states = create_encoder(step, encoder_inputs)
-    decoder_outputs = create_decoder(step, last_encoder_outputs, last_encoders_states)
+    last_encoder_outputs, last_encoders_states = _create_encoder(step, encoder_inputs)
+    decoder_outputs = _create_decoder(step, last_encoder_outputs, last_encoders_states)
 
-    return Model([encoder_inputs], decoder_outputs)
+    return Model(encoder_inputs, decoder_outputs)
 
 
-def create_encoder(step: Tensorflow2ModelStep, encoder_inputs):
-    encoder = RNN(cell=create_stacked_rnn_cells(step), return_sequences=False, return_state=True)
+def _create_encoder(step: Tensorflow2ModelStep, encoder_inputs):
+    encoder = RNN(cell=_create_stacked_rnn_cells(step), return_sequences=False, return_state=True)
     last_encoder_outputs_and_states = encoder(encoder_inputs)
 
     last_encoder_outputs, *last_encoders_states = last_encoder_outputs_and_states
     return last_encoder_outputs, last_encoders_states
 
 
-def create_decoder(step: Tensorflow2ModelStep, last_encoder_outputs, last_encoders_states):
-    decoder_lstm = RNN(cell=create_stacked_rnn_cells(step), return_sequences=True, return_state=False)
+def _create_decoder(step: Tensorflow2ModelStep, last_encoder_outputs, last_encoders_states):
+    decoder_lstm = RNN(cell=_create_stacked_rnn_cells(step), return_sequences=True, return_state=False)
 
     last_encoder_output = tf.expand_dims(last_encoder_outputs, axis=1)
     replicated_last_encoder_output = tf.repeat(
@@ -62,7 +61,7 @@ def create_decoder(step: Tensorflow2ModelStep, last_encoder_outputs, last_encode
     return decoder_dense(decoder_outputs)
 
 
-def create_stacked_rnn_cells(step: Tensorflow2ModelStep):
+def _create_stacked_rnn_cells(step: Tensorflow2ModelStep):
     cells = []
     for _ in range(step.hyperparams['layers_stacked_count']):
         cells.append(GRUCell(step.hyperparams['hidden_dim']))
@@ -88,8 +87,9 @@ def create_optimizer(step: TensorflowV1ModelStep):
     return AdamOptimizer(learning_rate=step.hyperparams['learning_rate'])
 
 
-def metric_2d_to_3d_wrapper(metric_fun: Callable):
+def metric_3d_to_2d_wrapper(metric_fun: Callable):
     def metric(data_inputs, expected_outputs):
+        # We keep axis 0 for evaluation on USD only (or on first dim only when we have multidim output).
         return metric_fun(np.array(data_inputs)[..., 0], np.array(expected_outputs)[..., 0])
 
     return metric
@@ -111,8 +111,8 @@ def main():
     input_dim = data_inputs.shape[2]
     output_dim = expected_outputs.shape[2]
 
-    batch_size = 50
-    epochs = 10
+    batch_size = 100
+    epochs = 2
     validation_size = 0.15
     max_plotted_predictions = 10
 
@@ -120,12 +120,13 @@ def main():
         'hidden_dim': 100,
         'layers_stacked_count': 2,
         'lambda_loss_amount': 0.0003,
-        'learning_rate': 0.009,
+        'learning_rate': 0.006,
         'window_size_future': sequence_length,
         'output_dim': output_dim,
         'input_dim': input_dim
     })
-    metrics = {'mse': metric_2d_to_3d_wrapper(mean_squared_error)}
+    usd_metric = metric_3d_to_2d_wrapper(mean_squared_error)
+    metrics = {'mse': usd_metric}
 
     signal_prediction_pipeline = Pipeline([
         ForEachDataInput(MeanStdNormalizer()),
@@ -153,9 +154,12 @@ def main():
                         name='batch_metrics'
                     )
                 ], batch_size=batch_size)
-            ]), metrics=metrics, name='epoch_metrics'),
+            ]), metrics=metrics,
+                name='epoch_metrics',
+                print_metrics=True
+            ),
             test_size=validation_size,
-            scoring_function=metric_2d_to_3d_wrapper(mean_squared_error),
+            scoring_function=usd_metric
         ), epochs=epochs, fit_only=False)])
 
     pipeline, outputs = pipeline.fit_transform(data_inputs, expected_outputs)
