@@ -65,9 +65,7 @@ def _create_encoder(step: Tensorflow2ModelStep, encoder_inputs: Input) -> (tf.Te
     return last_encoder_outputs, last_encoders_states
 
 
-def _create_decoder(
-        step: Tensorflow2ModelStep, last_encoder_outputs: tf.Tensor, last_encoders_states: List[tf.Tensor]
-) -> tf.Tensor:
+def _create_decoder(step: Tensorflow2ModelStep, last_encoder_outputs: tf.Tensor, last_encoders_states: List[tf.Tensor]) -> tf.Tensor:
     """
    Create a decoder RNN using GRU cells.
 
