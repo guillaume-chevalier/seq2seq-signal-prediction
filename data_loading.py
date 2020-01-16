@@ -82,7 +82,7 @@ def generate_data_v2(batch_size, sequence_length):
     So we have 30 total values for past and future.
     """
     if batch_size is None:
-        batch_size = 1000
+        batch_size = 10000
     if sequence_length is None:
         sequence_length = 15
 
@@ -95,7 +95,7 @@ def generate_data_v3(batch_size, sequence_length):
     with noise in the X values.
     """
     if batch_size is None:
-        batch_size = 1000
+        batch_size = 10000
     if sequence_length is None:
         sequence_length = 30
 

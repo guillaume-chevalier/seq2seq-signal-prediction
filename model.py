@@ -40,7 +40,7 @@ def create_model(step: Tensorflow2ModelStep):
 
 
 def create_encoder(step: Tensorflow2ModelStep, encoder_inputs):
-    encoder = RNN(create_stacked_rnn_cells(step), return_sequences=False, return_state=True)
+    encoder = RNN(cell=create_stacked_rnn_cells(step), return_sequences=False, return_state=True)
     last_encoder_outputs_and_states = encoder(encoder_inputs)
 
     last_encoder_outputs, *last_encoders_states = last_encoder_outputs_and_states
@@ -48,11 +48,14 @@ def create_encoder(step: Tensorflow2ModelStep, encoder_inputs):
 
 
 def create_decoder(step: Tensorflow2ModelStep, last_encoder_outputs, last_encoders_states):
-    decoder_lstm = RNN(create_stacked_rnn_cells(step), return_sequences=True, return_state=False)
+    decoder_lstm = RNN(cell=create_stacked_rnn_cells(step), return_sequences=True, return_state=False)
 
     last_encoder_output = tf.expand_dims(last_encoder_outputs, axis=1)
-    replicated_last_encoder_output = tf.repeat(input=last_encoder_output,
-                                               repeats=step.hyperparams['window_size_future'], axis=1)
+    replicated_last_encoder_output = tf.repeat(
+        input=last_encoder_output,
+        repeats=step.hyperparams['window_size_future'],
+        axis=1
+    )
     decoder_outputs = decoder_lstm(replicated_last_encoder_output, initial_state=last_encoders_states)
     decoder_dense = Dense(step.hyperparams['output_dim'])
 
@@ -108,9 +111,10 @@ def main():
     input_dim = data_inputs.shape[2]
     output_dim = expected_outputs.shape[2]
 
-    batch_size = 100
+    batch_size = 50
     epochs = 10
     validation_size = 0.15
+    max_plotted_predictions = 10
 
     seq2seq_pipeline_hyperparams = HyperparameterSamples({
         'hidden_dim': 100,
@@ -157,16 +161,16 @@ def main():
     pipeline, outputs = pipeline.fit_transform(data_inputs, expected_outputs)
 
     plot_metrics(pipeline=pipeline, exercice_number=exercice_number)
-    plot_predictions(data_inputs, expected_outputs, pipeline)
+    plot_predictions(data_inputs, expected_outputs, pipeline, max_plotted_predictions)
 
 
-def plot_predictions(data_inputs, expected_outputs, pipeline):
+def plot_predictions(data_inputs, expected_outputs, pipeline, max_plotted_predictions):
     _, _, data_inputs_validation, expected_outputs_validation = \
         pipeline.get_step_by_name('ValidationSplitWrapper').split(data_inputs, expected_outputs)
 
     signal_prediction_pipeline = pipeline.get_step_by_name('SignalPrediction')
     signal_prediction_pipeline.apply('toggle_plotting')
-    signal_prediction_pipeline.apply('set_max_plotted_predictions', 10)
+    signal_prediction_pipeline.apply('set_max_plotted_predictions', max_plotted_predictions)
 
     signal_prediction_pipeline.transform_data_container(DataContainer(
         data_inputs=data_inputs_validation,
