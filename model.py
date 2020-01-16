@@ -15,6 +15,7 @@ from tensorflow_core.python.client import device_lib
 from tensorflow_core.python.keras import Input, Model
 from tensorflow_core.python.keras.layers import GRUCell, RNN, Dense
 from tensorflow_core.python.training.rmsprop import RMSPropOptimizer
+from tensorflow_core.python.training.adam import AdamOptimizer
 
 from data_loading import generate_data
 from neuraxle_tensorflow.tensorflow_v1 import TensorflowV1ModelStep
@@ -81,24 +82,7 @@ def create_loss(step: Tensorflow2ModelStep, expected_outputs, predicted_outputs)
 
 
 def create_optimizer(step: TensorflowV1ModelStep):
-    return RMSPropOptimizer(
-        learning_rate=step.hyperparams['learning_rate'],
-        decay=step.hyperparams['lr_decay'],
-        momentum=step.hyperparams['momentum']
-    )
-
-
-seq2seq_pipeline_hyperparams = HyperparameterSamples({
-    'hidden_dim': 35,
-    'layers_stacked_count': 2,
-    'lambda_loss_amount': 0.003,
-    'learning_rate': 0.006,
-    'lr_decay': 0.92,
-    'momentum': 0.5,
-    'window_size_future': 40,
-    'output_dim': 2,
-    'input_dim': 2
-})
+    return AdamOptimizer(learning_rate=step.hyperparams['learning_rate'])
 
 
 def metric_2d_to_3d_wrapper(metric_fun: Callable):
@@ -109,7 +93,7 @@ def metric_2d_to_3d_wrapper(metric_fun: Callable):
 
 
 def main():
-    exercice_number = 1
+    exercice_number = 2
 
     data_inputs, expected_outputs = generate_data(exercice_number=exercice_number)
 
@@ -124,27 +108,34 @@ def main():
     input_dim = data_inputs.shape[2]
     output_dim = expected_outputs.shape[2]
 
-    batch_size = 50
-    epochs = 25
+    batch_size = 100
+    epochs = 10
     validation_size = 0.15
 
+    seq2seq_pipeline_hyperparams = HyperparameterSamples({
+        'hidden_dim': 100,
+        'layers_stacked_count': 2,
+        'lambda_loss_amount': 0.0003,
+        'learning_rate': 0.009,
+        'window_size_future': sequence_length,
+        'output_dim': output_dim,
+        'input_dim': input_dim
+    })
     metrics = {'mse': metric_2d_to_3d_wrapper(mean_squared_error)}
 
     signal_prediction_pipeline = Pipeline([
         ForEachDataInput(MeanStdNormalizer()),
         ToNumpy(),
-        PlotPredictionsWrapper(Tensorflow2ModelStep(
-            create_model=create_model,
-            create_loss=create_loss,
-            create_optimizer=create_optimizer,
-            expected_outputs_dtype=tf.dtypes.float32,
-            data_inputs_dtype=tf.dtypes.float32,
-            print_loss=True
-        ).set_hyperparams(seq2seq_pipeline_hyperparams).update_hyperparams(HyperparameterSamples({
-            'window_size_future': sequence_length,
-            'input_dim': input_dim,
-            'output_dim': output_dim
-        })))
+        PlotPredictionsWrapper(
+            Tensorflow2ModelStep(
+                create_model=create_model,
+                create_loss=create_loss,
+                create_optimizer=create_optimizer,
+                expected_outputs_dtype=tf.dtypes.float32,
+                data_inputs_dtype=tf.dtypes.float32,
+                print_loss=True
+            ).set_hyperparams(seq2seq_pipeline_hyperparams)
+        )
     ]).set_name('SignalPrediction')
 
     pipeline = Pipeline([EpochRepeater(
