@@ -105,6 +105,12 @@ def _create_decoder(step: Tensorflow2ModelStep, last_encoder_outputs, last_encod
 
 
 def _create_stacked_rnn_cells(step: Tensorflow2ModelStep):
+    """
+    Create layers_stacked_count stacked GRU cells with hidden_dim units.
+
+    :return: list of gru cells
+    :rtype: List[GRUCell]
+    """
     cells = []
     for _ in range(step.hyperparams['layers_stacked_count']):
         cells.append(GRUCell(step.hyperparams['hidden_dim']))
@@ -113,6 +119,19 @@ def _create_stacked_rnn_cells(step: Tensorflow2ModelStep):
 
 
 def create_loss(step: Tensorflow2ModelStep, expected_outputs, predicted_outputs):
+    """
+    Create model loss.
+
+    :param step: tensorflow 2 model step
+    :type step: Tensorflow2ModelStep
+    :param expected_outputs: expected outputs
+    :type expected_outputs: (batch_size, window_size_future, output_dim)
+    :param predicted_outputs: expected outputs
+    :type predicted_outputs: (batch_size, window_size_future, output_dim)
+
+    :return: loss
+    :rtype: float
+    """
     l2 = step.hyperparams['lambda_loss_amount'] * sum(
         tf.reduce_mean(tf.nn.l2_loss(tf_var))
         for tf_var in step.model.trainable_variables
@@ -127,6 +146,15 @@ def create_loss(step: Tensorflow2ModelStep, expected_outputs, predicted_outputs)
 
 
 def create_optimizer(step: TensorflowV1ModelStep):
+    """
+    Create tensorflow 2 optimizer.
+
+    :param step: tensorflow 2 model step
+    :type step: Tensorflow2ModelStep
+
+    :return: optimizer
+    :rtype: tensorflow 2 optimizer.Optimizer
+    """
     return AdamOptimizer(learning_rate=step.hyperparams['learning_rate'])
 
 
