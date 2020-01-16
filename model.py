@@ -109,7 +109,7 @@ def metric_2d_to_3d_wrapper(metric_fun: Callable):
 
 
 def main():
-    exercice_number = 1
+    exercice_number = 2
 
     data_inputs, expected_outputs = generate_data(exercice_number=exercice_number)
 
@@ -125,8 +125,9 @@ def main():
     output_dim = expected_outputs.shape[2]
 
     batch_size = 50
-    epochs = 25
+    epochs = 100
     validation_size = 0.15
+    max_plotted_predictions = 10
 
     metrics = {'mse': metric_2d_to_3d_wrapper(mean_squared_error)}
 
@@ -166,16 +167,16 @@ def main():
     pipeline, outputs = pipeline.fit_transform(data_inputs, expected_outputs)
 
     plot_metrics(pipeline=pipeline, exercice_number=exercice_number)
-    plot_predictions(data_inputs, expected_outputs, pipeline)
+    plot_predictions(data_inputs, expected_outputs, pipeline, max_plotted_predictions)
 
 
-def plot_predictions(data_inputs, expected_outputs, pipeline):
+def plot_predictions(data_inputs, expected_outputs, pipeline, max_plotted_predictions):
     _, _, data_inputs_validation, expected_outputs_validation = \
         pipeline.get_step_by_name('ValidationSplitWrapper').split(data_inputs, expected_outputs)
 
     signal_prediction_pipeline = pipeline.get_step_by_name('SignalPrediction')
     signal_prediction_pipeline.apply('toggle_plotting')
-    signal_prediction_pipeline.apply('set_max_plotted_predictions', 10)
+    signal_prediction_pipeline.apply('set_max_plotted_predictions', max_plotted_predictions)
 
     signal_prediction_pipeline.transform_data_container(DataContainer(
         data_inputs=data_inputs_validation,
