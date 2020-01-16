@@ -66,7 +66,9 @@ def _create_encoder(step: Tensorflow2ModelStep, encoder_inputs: Input) -> (tf.Te
     return last_encoder_outputs, last_encoders_states
 
 
-def _create_decoder(step: Tensorflow2ModelStep, last_encoder_outputs: tf.Tensor, last_encoders_states: List[tf.Tensor]) -> tf.Tensor:
+def _create_decoder(
+        step: Tensorflow2ModelStep, last_encoder_outputs: tf.Tensor,last_encoders_states: List[tf.Tensor]
+) -> tf.Tensor:
     """
     Create a decoder RNN using GRU cells.
 
@@ -242,7 +244,7 @@ def choose_tf_device():
     try:
         chosen_device = [d for d in devices if 'gpu' in d.lower()][0]
     except:
-        warning.warn(
+        warning(
             "No GPU device found. Please make sure to do `Runtime > Change Runtime Type` and select GPU for Python 3.")
         chosen_device = devices[0]
     print('Chosen Device: {}'.format(chosen_device))
