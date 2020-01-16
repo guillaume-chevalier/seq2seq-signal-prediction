@@ -1,10 +1,10 @@
 import json
-import math
 import random
 import urllib
+from typing import Callable
 
+import math
 import numpy as np
-import requests
 
 
 def generate_data(
@@ -215,3 +215,11 @@ def window_time_series(data_inputs, window_size_past, window_size_future):
             data_inputs[i + window_size_past: i + window_size_past + window_size_future])
 
     return np.array(new_data_inputs), np.array(new_expected_outputs)
+
+
+def metric_3d_to_2d_wrapper(metric_fun: Callable):
+    def metric(data_inputs, expected_outputs):
+        # We keep axis 0 for evaluation on USD only (or on first dim only when we have multidim output).
+        return metric_fun(np.array(data_inputs)[..., 0], np.array(expected_outputs)[..., 0])
+
+    return metric
