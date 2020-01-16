@@ -4,8 +4,6 @@ import random
 import numpy as np
 import requests
 
-from steps import WindowTimeSeries
-
 
 def generate_data(
         exercice_number,
@@ -84,7 +82,7 @@ def generate_data_v2(batch_size, sequence_length):
     So we have 30 total values for past and future.
     """
     if batch_size is None:
-        batch_size = 300
+        batch_size = 1000
     if sequence_length is None:
         sequence_length = 15
 
@@ -97,7 +95,7 @@ def generate_data_v3(batch_size, sequence_length):
     with noise in the X values.
     """
     if batch_size is None:
-        batch_size = 600
+        batch_size = 1000
     if sequence_length is None:
         sequence_length = 30
 
@@ -179,7 +177,7 @@ def load_currency(currency):
 
 def generate_data_v4(batch_size, window_size_future, window_size_past):
     if batch_size is None:
-        batch_size = 500
+        batch_size = 2000
     if window_size_past is None:
         window_size_past = 40
     if window_size_future is None:
