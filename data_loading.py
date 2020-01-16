@@ -42,7 +42,7 @@ def generate_data_v1(batch_size, sequence_length):
     argument and test on the same data.
     """
     if batch_size is None:
-        batch_size = 100
+        batch_size = 200
     if sequence_length is None:
         sequence_length = 10
 

@@ -25,18 +25,17 @@ from steps import MeanStdNormalizer, ToNumpy, PlotPredictionsWrapper
 
 def create_model(step: Tensorflow2ModelStep):
     # shape: (batch_size, seq_length, input_dim)
-    encoder_inputs = Input(shape=(None, step.hyperparams['input_dim']), dtype=tf.dtypes.float32, name='encoder_inputs')
-    # TODO: why is this 2D here whereas the comment above is 3D? I'd have expected a 3D Input placeholder.
-    #       This needs an explanation or at least I need to know to explain it.
-    # TODO: this might be a bug
-
-    # shape: (batch_size, seq_length, output_dim)
-    decoder_inputs = Input(shape=(step.hyperparams['window_size_future'], step.hyperparams['output_dim']), dtype=tf.dtypes.float32, name='decoder_inputs')
+    encoder_inputs = Input(
+        shape=(None, step.hyperparams['input_dim']),
+        batch_size=None,
+        dtype=tf.dtypes.float32,
+        name='encoder_inputs'
+    )
 
     last_encoder_outputs, last_encoders_states = create_encoder(step, encoder_inputs)
     decoder_outputs = create_decoder(step, last_encoder_outputs, last_encoders_states)
 
-    return Model([encoder_inputs, decoder_inputs], decoder_outputs)
+    return Model([encoder_inputs], decoder_outputs)
 
 
 def create_encoder(step: Tensorflow2ModelStep, encoder_inputs):
@@ -54,7 +53,6 @@ def create_decoder(step: Tensorflow2ModelStep, last_encoder_outputs, last_encode
     replicated_last_encoder_output = tf.repeat(input=last_encoder_output,
                                                repeats=step.hyperparams['window_size_future'], axis=1)
     decoder_outputs = decoder_lstm(replicated_last_encoder_output, initial_state=last_encoders_states)
-
     decoder_dense = Dense(step.hyperparams['output_dim'])
 
     return decoder_dense(decoder_outputs)
@@ -91,8 +89,8 @@ def create_optimizer(step: TensorflowV1ModelStep):
 
 
 seq2seq_pipeline_hyperparams = HyperparameterSamples({
-    'hidden_dim': 32,
-    'layers_stacked_count': 15,
+    'hidden_dim': 35,
+    'layers_stacked_count': 2,
     'lambda_loss_amount': 0.003,
     'learning_rate': 0.006,
     'lr_decay': 0.92,
@@ -111,7 +109,7 @@ def metric_2d_to_3d_wrapper(metric_fun: Callable):
 
 
 def main():
-    exercice_number = 4
+    exercice_number = 1
 
     data_inputs, expected_outputs = generate_data(exercice_number=exercice_number)
 
@@ -127,7 +125,7 @@ def main():
     output_dim = expected_outputs.shape[2]
 
     batch_size = 50
-    epochs = 75
+    epochs = 25
     validation_size = 0.15
 
     metrics = {'mse': metric_2d_to_3d_wrapper(mean_squared_error)}
