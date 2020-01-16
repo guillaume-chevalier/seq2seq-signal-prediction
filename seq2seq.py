@@ -1,3 +1,4 @@
+from logging import warning
 from typing import List
 
 import tensorflow as tf
@@ -25,10 +26,10 @@ from steps import MeanStdNormalizer, ToNumpy, PlotPredictionsWrapper
 
 def create_model(step: Tensorflow2ModelStep) -> tf.keras.Model:
     """
-   Create a TensorFlow v2 sequence to sequence (seq2seq) encoder-decoder model.
+    Create a TensorFlow v2 sequence to sequence (seq2seq) encoder-decoder model.
 
-   :param step: The base Neuraxle step for TensorFlow v2 (Tensorflow2ModelStep)
-   :return: TensorFlow v2 Keras model
+    :param step: The base Neuraxle step for TensorFlow v2 (Tensorflow2ModelStep)
+    :return: TensorFlow v2 Keras model
     """
     # shape: (batch_size, seq_length, input_dim)
     encoder_inputs = Input(
@@ -46,9 +47,9 @@ def create_model(step: Tensorflow2ModelStep) -> tf.keras.Model:
 
 def _create_encoder(step: Tensorflow2ModelStep, encoder_inputs: Input) -> (tf.Tensor, List[tf.Tensor]):
     """
-   Create an encoder RNN using GRU Cells. GRU cells are similar to LSTM cells.
+    Create an encoder RNN using GRU Cells. GRU cells are similar to LSTM cells.
 
-   :param step: The base Neuraxle step for TensorFlow v2 (class Tensorflow2ModelStep)
+    :param step: The base Neuraxle step for TensorFlow v2 (class Tensorflow2ModelStep)
     :param encoder_inputs: encoder inputs layer of shape (batch_size, seq_length, input_dim)
     :return: (last encoder outputs, last stacked encoders states)
                 last_encoder_outputs shape: (batch_size, hidden_dim)
@@ -69,9 +70,9 @@ def _create_decoder(
         step: Tensorflow2ModelStep, last_encoder_outputs: tf.Tensor, last_encoders_states: List[tf.Tensor]
 ) -> tf.Tensor:
     """
-   Create a decoder RNN using GRU cells.
+    Create a decoder RNN using GRU cells.
 
-   :param step: The base Neuraxle step for TensorFlow v2 (Tensorflow2ModelStep)
+    :param step: The base Neuraxle step for TensorFlow v2 (Tensorflow2ModelStep)
     :param last_encoders_states: last encoder states tensor
     :param last_encoder_outputs: last encoder output tensor
     :return: decoder output
@@ -99,10 +100,10 @@ def _create_decoder(
 
 def _create_stacked_rnn_cells(step: Tensorflow2ModelStep) -> List[GRUCell]:
     """
-   Create a `layers_stacked_count` amount of GRU cells and stack them on top of each other.
-   They have a `hidden_dim` number of neuron layer size.
+    Create a `layers_stacked_count` amount of GRU cells and stack them on top of each other.
+    They have a `hidden_dim` number of neuron layer size.
 
-   :param step: The base Neuraxle step for TensorFlow v2 (Tensorflow2ModelStep)
+    :param step: The base Neuraxle step for TensorFlow v2 (Tensorflow2ModelStep)
     :return: list of gru cells
     """
     cells = []
@@ -116,10 +117,10 @@ def create_loss(step: Tensorflow2ModelStep, expected_outputs: tf.Tensor, predict
     """
     Create model loss.
 
-   :param step: The base Neuraxle step for TensorFlow v2 (Tensorflow2ModelStep)
-   :param expected_outputs: expected outputs of shape (batch_size, window_size_future, output_dim)
-   :param predicted_outputs: expected outputs of shape (batch_size, window_size_future, output_dim)
-   :return: loss (a tf Tensor that is a float)
+    :param step: The base Neuraxle step for TensorFlow v2 (Tensorflow2ModelStep)
+    :param expected_outputs: expected outputs of shape (batch_size, window_size_future, output_dim)
+    :param predicted_outputs: expected outputs of shape (batch_size, window_size_future, output_dim)
+    :return: loss (a tf Tensor that is a float)
     """
     l2 = step.hyperparams['lambda_loss_amount'] * sum(
         tf.reduce_mean(tf.nn.l2_loss(tf_var))
@@ -136,15 +137,15 @@ def create_loss(step: Tensorflow2ModelStep, expected_outputs: tf.Tensor, predict
 
 def create_optimizer(step: TensorflowV1ModelStep) -> AdamOptimizer:
     """
-   Create a TensorFlow 2 Optimizer: here the AdamOptimizer.
+    Create a TensorFlow 2 Optimizer: here the AdamOptimizer.
 
-   :param step: The base Neuraxle step for TensorFlow v2 (Tensorflow2ModelStep)
+    :param step: The base Neuraxle step for TensorFlow v2 (Tensorflow2ModelStep)
     :return: optimizer
     """
     return AdamOptimizer(learning_rate=step.hyperparams['learning_rate'])
 
 
-def main():
+def main(chosen_device):
     exercice_number = 1
     print('exercice {}\n=================='.format(exercice_number))
 
@@ -233,9 +234,23 @@ def plot_predictions(data_inputs, expected_outputs, pipeline, max_plotted_predic
     ))
 
 
-if __name__ == '__main__':
+def choose_tf_device():
+    """
+    Choose a TensorFlow device (e.g.: GPU if available) to compute on.
+    """
     tf.debugging.set_log_device_placement(True)
-    print('You can use the following tf devices: {}'.format(
-        [x.name for x in device_lib.list_local_devices()]))
+    devices = [x.name for x in device_lib.list_local_devices()]
+    print('You can use the following tf devices: {}'.format(devices))
+    try:
+        chosen_device = [d for d in devices if 'gpu' in d.lower()][0]
+    except:
+        warning.warn(
+            "No GPU device found. Please make sure to do `Runtime > Change Runtime Type` and select GPU for Python 3.")
+        chosen_device = devices[0]
+    print('Chosen Device: {}'.format(chosen_device))
+    return chosen_device
 
-    main()
+
+if __name__ == '__main__':
+    chosen_device = choose_tf_device()
+    main(chosen_device)
