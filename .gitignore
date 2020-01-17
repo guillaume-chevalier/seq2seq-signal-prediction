@@ -92,4 +92,3 @@ ENV/
 ___*
 neuraxle_tensorflow/*
 .idea/*
-*.png
