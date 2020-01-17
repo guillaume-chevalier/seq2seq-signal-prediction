@@ -657,7 +657,7 @@ plot_metrics(pipeline=pipeline, exercice_number=exercice_number)
 
 
 
-![png](seq2seq_files/seq2seq_24_1.png)
+![png](images/loss.png)
 
 
 
@@ -686,47 +686,47 @@ plot_predictions(data_inputs, expected_outputs, pipeline, max_plotted_validation
 
 
 
-![png](seq2seq_files/seq2seq_25_1.png)
+![png](images/output_1.png)
 
 
 
-![png](seq2seq_files/seq2seq_25_2.png)
+![png](images/output_2.png)
 
 
 
-![png](seq2seq_files/seq2seq_25_3.png)
+![png](images/output_3.png)
 
 
 
-![png](seq2seq_files/seq2seq_25_4.png)
+![png](images/output_4.png)
 
 
 
-![png](seq2seq_files/seq2seq_25_5.png)
+![png](images/output_5.png)
 
 
 
-![png](seq2seq_files/seq2seq_25_6.png)
+![png](images/output_6.png)
 
 
 
-![png](seq2seq_files/seq2seq_25_7.png)
+![png](images/output_7.png)
 
 
 
-![png](seq2seq_files/seq2seq_25_8.png)
+![png](images/output_8.png)
 
 
 
-![png](seq2seq_files/seq2seq_25_9.png)
+![png](images/output_9.png)
 
 
 
-![png](seq2seq_files/seq2seq_25_10.png)
+![png](images/output_10.png)
 
 
 
-![png](seq2seq_files/seq2seq_25_11.png)
+![png](images/output_11.png)
 
 
 ## Conclusion 
