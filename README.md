@@ -769,6 +769,6 @@ Join the [slack workspace](https://join.slack.com/t/neuraxio/shared_invite/zt-8l
 
 ## Online Course: Learn Deep Learning and Recurrent Neural Networks (DL&RNN)
 
-We have created a course on Deep Learning and Recurrent Neural Networks (DL&RNN). [Request an access to the course here](https://www.neuraxio.com/en/time-series-solution). That is the most richly dense and accelerated course out there on this precise topic of DL&RNN. The present project is also explained in detail in this course.
+We have created a course on Deep Learning and Recurrent Neural Networks (DL&RNN). [Access the course preview here](https://www.dl-rnn-course.neuraxio.com/overview?utm_source=github_seq2seq). It is the most richly dense and accelerated course out there on this precise topic to make you understand RNNs and other advanced neural networks techniques quickly.
 
-We've also created another course on how to do Clean Machine Learning with the right design patterns and the right software architecture for your code to evolve correctly to be useable in production environments.
+We've also created another course on how to do [Clean Machine Learning](https://www.neuraxle.org/stable/intro.html) with the right design patterns and the right software architecture for your code to evolve correctly to be useable in production environments. Coming soon (not online yet).
