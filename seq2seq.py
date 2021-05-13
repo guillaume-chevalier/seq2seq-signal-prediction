@@ -4,12 +4,13 @@ from typing import List
 import tensorflow as tf
 from neuraxle.data_container import DataContainer
 from neuraxle.hyperparams.space import HyperparameterSamples
-from neuraxle.metaopt.random import ValidationSplitWrapper
-from neuraxle.metrics import MetricsWrapper
+from neuraxle.metaopt.auto_ml import Trainer, ValidationSplitter
+from neuraxle.metaopt.callbacks import ScoringCallback
+from neuraxle.metaopt.trial import Trial
 from neuraxle.pipeline import Pipeline, MiniBatchSequentialPipeline
-from neuraxle.steps.data import EpochRepeater, DataShuffler
-from neuraxle.steps.flow import TrainOnlyWrapper
 from neuraxle.steps.loop import ForEachDataInput
+from neuraxle_tensorflow.tensorflow_v1 import TensorflowV1ModelStep
+from neuraxle_tensorflow.tensorflow_v2 import Tensorflow2ModelStep
 from sklearn.metrics import mean_squared_error
 from tensorflow_core.python.client import device_lib
 from tensorflow_core.python.keras import Input, Model
@@ -18,8 +19,6 @@ from tensorflow_core.python.training.adam import AdamOptimizer
 
 from datasets import generate_data
 from datasets import metric_3d_to_2d_wrapper
-from neuraxle_tensorflow.tensorflow_v1 import TensorflowV1ModelStep
-from neuraxle_tensorflow.tensorflow_v2 import Tensorflow2ModelStep
 from plotting import plot_metrics
 from steps import MeanStdNormalizer, ToNumpy, PlotPredictionsWrapper
 
@@ -178,59 +177,63 @@ def main(chosen_device):
         'output_dim': output_dim,
         'input_dim': input_dim
     })
-    feature_0_metric = metric_3d_to_2d_wrapper(mean_squared_error)
-    metrics = {'mse': feature_0_metric}
 
-    signal_prediction_pipeline = Pipeline([
-        ForEachDataInput(MeanStdNormalizer()),
-        ToNumpy(),
-        PlotPredictionsWrapper(Tensorflow2ModelStep(
-            # See: https://github.com/Neuraxio/Neuraxle-TensorFlow
-            create_model=create_model,
-            create_loss=create_loss,
-            create_optimizer=create_optimizer,
-            expected_outputs_dtype=tf.dtypes.float32,
-            data_inputs_dtype=tf.dtypes.float32,
-            print_loss=True
-        ).set_hyperparams(seq2seq_pipeline_hyperparams))
+    pipeline = Pipeline([
+        MiniBatchSequentialPipeline([
+            ForEachDataInput(MeanStdNormalizer()),
+            ToNumpy(),
+            PlotPredictionsWrapper(Tensorflow2ModelStep(
+                # See: https://github.com/Neuraxio/Neuraxle-TensorFlow
+                create_model=create_model,
+                create_loss=create_loss,
+                create_optimizer=create_optimizer,
+                expected_outputs_dtype=tf.dtypes.float32,
+                data_inputs_dtype=tf.dtypes.float32,
+                device_name=chosen_device,
+                print_loss=True
+            ).set_hyperparams(seq2seq_pipeline_hyperparams))
+        ], batch_size=batch_size),
     ]).set_name('SignalPrediction')
 
-    pipeline = Pipeline([EpochRepeater(
-        ValidationSplitWrapper(
-            MetricsWrapper(Pipeline([
-                TrainOnlyWrapper(DataShuffler()),
-                MiniBatchSequentialPipeline([
-                    MetricsWrapper(
-                        signal_prediction_pipeline,
-                        metrics=metrics,
-                        name='batch_metrics'
-                    )
-                ], batch_size=batch_size)
-            ]), metrics=metrics,
-                name='epoch_metrics',
-                print_metrics=True
-            ),
-            test_size=validation_size,
-            scoring_function=feature_0_metric
-        ), epochs=epochs)])
+    trainer = Trainer(
+        epochs=epochs,
+        validation_splitter=ValidationSplitter(test_size=validation_size),
+        scoring_callback=ScoringCallback(metric_function=metric_3d_to_2d_wrapper(mean_squared_error), higher_score_is_better=False)
+    )
 
-    pipeline, outputs = pipeline.fit_transform(data_inputs, expected_outputs)
+    trial: Trial = trainer.train(
+        pipeline=pipeline,
+        data_inputs=data_inputs,
+        expected_outputs=expected_outputs
+    )
 
-    plot_metrics(pipeline=pipeline, exercice_number=exercice_number)
-    plot_predictions(data_inputs, expected_outputs, pipeline, max_plotted_validation_predictions)
+    plot_metrics(
+        metric_name='mse',
+        train_values=trial.validation_splits[0].metrics_results['main']['train_values'],
+        validation_values=trial.validation_splits[0].metrics_results['main']['validation_values'],
+        exercice_number=exercice_number
+    )
 
+    # Get trained pipeline
+    pipeline = trial.get_trained_pipeline(split_number=0)
 
-def plot_predictions(data_inputs, expected_outputs, pipeline, max_plotted_predictions):
-    _, _, data_inputs_validation, expected_outputs_validation = \
-        pipeline.get_step_by_name('ValidationSplitWrapper').split(data_inputs, expected_outputs)
+    # Get validation set with trainer.validation_split_function.split function.
+    _, _, data_inputs_validation, expected_outputs_validation = trainer.validation_split_function.split(
+        data_inputs=data_inputs,
+        expected_outputs=expected_outputs
+    )
 
+    # Enable the plotting feature inside the PlotPredictionsWrapper wrapper step.
     pipeline.apply('toggle_plotting')
-    pipeline.apply('set_max_plotted_predictions', max_plotted_predictions)
+    pipeline.apply(
+        method='set_max_plotted_predictions',
+        max_plotted_predictions=max_plotted_validation_predictions
+    )
 
-    signal_prediction_pipeline = pipeline.get_step_by_name('SignalPrediction')
-    signal_prediction_pipeline.transform_data_container(DataContainer(
-        data_inputs=data_inputs_validation,
-        expected_outputs=expected_outputs_validation
+    # Transform the trained pipeline to plot predictions
+    pipeline.transform_data_container(DataContainer(
+        data_inputs=data_inputs_validation[0],
+        expected_outputs=expected_outputs_validation[0]
     ))
 
 

@@ -187,7 +187,7 @@ from datasets import generate_data
 from datasets import metric_3d_to_2d_wrapper
 from neuraxle_tensorflow.tensorflow_v1 import TensorflowV1ModelStep
 from neuraxle_tensorflow.tensorflow_v2 import Tensorflow2ModelStep
-from plotting import plot_metrics
+from train_values import plot_metrics
 from steps import MeanStdNormalizer, ToNumpy, PlotPredictionsWrapper
 
 %matplotlib inline
