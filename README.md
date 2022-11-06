@@ -741,34 +741,14 @@ Here is what you learned:
 - Shuffling the data during training
 - Using minibatches to process the data using a MiniBatchSequentialPipeline
 
+## About
 
-## About Us
-
-The Author, [Guillaume Chevalier](https://guillaume-chevalier.com/):
+Connect with me:
+- https://github.com/guillaume-chevalier/
 - https://ca.linkedin.com/in/chevalierg
 - https://twitter.com/guillaume_che
-- https://github.com/guillaume-chevalier/
-
-This original project was updated and maintained with the support of our team, contributors and business partners at [Neuraxio](https://www.neuraxio.com/en/):
-- https://ca.linkedin.com/company/neuraxio
-- https://twitter.com/neuraxio_inc
-- https://github.com/Neuraxio/
 
 ## License & Citation
 
 This project is free to use according to the [Apache 2.0 License](https://github.com/guillaume-chevalier/seq2seq-signal-prediction/blob/master/LICENSE) as long as you link to the project (citation), and that you respect the License (read the License for more details). You can cite by pointing to the following link: 
 - https://github.com/guillaume-chevalier/seq2seq-signal-prediction
-
-## Collaborate with us on similar research projects
-
-Join the [slack workspace](https://join.slack.com/t/neuraxio/shared_invite/zt-8lyw42c5-4PuWjTT8dQqeFK3at1s_dQ) for time series processing, where you can: 
-
-- Collaborate with us and other researchers on writing more time series processing papers, in the #research channel;
-- Do business with us and other companies for services and products related to time series processing, in the #business channel;
-- Talk about how to do Clean Machine Learning using [Neuraxle](https://github.com/Neuraxio/Neuraxle), in the #neuraxle channel;
-
-## Online Course: Learn Deep Learning and Recurrent Neural Networks (DL&RNN)
-
-We have created a course on Deep Learning and Recurrent Neural Networks (DL&RNN). [Access the course preview here](https://www.dl-rnn-course.neuraxio.com/overview?utm_source=github_seq2seq). It is the most richly dense and accelerated course out there on this precise topic to make you understand RNNs and other advanced neural networks techniques quickly.
-
-We've also created another course on how to do [Clean Machine Learning](https://www.neuraxle.org/stable/intro.html) with the right design patterns and the right software architecture for your code to evolve correctly to be useable in production environments. Coming soon (not online yet).
