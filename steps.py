@@ -3,6 +3,7 @@ from typing import Callable
 import numpy as np
 from neuraxle.base import NonFittableMixin, BaseStep, Identity, ExecutionContext
 from neuraxle.data_container import DataContainer
+from neuraxle.hyperparams.space import RecursiveDict
 from neuraxle.steps.output_handlers import InputAndOutputTransformerMixin
 from neuraxle.union import FeatureUnion
 
@@ -80,9 +81,11 @@ class PlotPredictionsJoiner(NonFittableMixin, BaseStep):
 
     def set_max_plotted_predictions(self, max_plotted_predictions):
         self.max_plotted_predictions = max_plotted_predictions
+        return RecursiveDict()
 
     def toggle_plotting(self):
         self.enabled = not self.enabled
+        return RecursiveDict()
 
     def transform(self, data_inputs):
         raise NotImplementedError('must be used inside a pipeline')
